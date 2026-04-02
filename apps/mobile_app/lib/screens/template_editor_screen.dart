@@ -1175,13 +1175,22 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           ? math.min(box.maxWidth / 1080, box.maxHeight / 1920)
                           : math.min(box.maxWidth / 1920, box.maxHeight / 1080);
 
+                      final usesHeadlinePreview =
+                          currentSlide.templateType == TemplateType.promo ||
+                          currentSlide.templateType == TemplateType.welcome;
+
                       return Stack(
                         children: [
                           Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 80 * previewScale,
-                              vertical: 60 * previewScale,
-                            ),
+                            padding: usesHeadlinePreview
+                                ? EdgeInsets.symmetric(
+                                    horizontal: box.maxWidth * 0.07,
+                                    vertical: box.maxHeight * 0.055,
+                                  )
+                                : EdgeInsets.symmetric(
+                                    horizontal: 80 * previewScale,
+                                    vertical: 60 * previewScale,
+                                  ),
                             child: _buildPreviewSlideContent(previewScale),
                           ),
                           Positioned(
