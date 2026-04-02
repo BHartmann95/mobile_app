@@ -110,7 +110,11 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     }).toList();
   }
 
-  void openContent(SavedContent content) {
+  Future<void> openContent(SavedContent content) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    if (!mounted) return;
+
     Navigator.push(
       context,
       MaterialPageRoute(

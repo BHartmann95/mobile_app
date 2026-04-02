@@ -1107,7 +1107,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   List<Map<String, String>> _visiblePreviewMenuItems() {
-    final items = _visiblePreviewMenuItems();
+    final items = _currentMenuItems();
     final maxItems = _maxMenuItemsPerSlide();
     if (items.length <= maxItems) return items;
     return items.take(maxItems).toList();
