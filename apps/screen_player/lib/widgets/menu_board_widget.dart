@@ -66,11 +66,16 @@ class MenuBoardWidget extends StatelessWidget {
         final itemFont = (isPortrait ? h * 0.045 : h * 0.052) * itemScale;
         final priceFont = (isPortrait ? h * 0.043 : h * 0.050) * itemScale;
         final footerFont = (isPortrait ? h * 0.018 : h * 0.022) * itemScale;
-        final topSpace = (isPortrait ? h * 0.018 : h * 0.010) * (isPortrait ? 0.90 : 1.0);
-        final betweenHeader = (isPortrait ? h * 0.010 : h * 0.014) * itemScale;
-        final betweenListAndFooter = (isPortrait ? h * 0.010 : h * 0.012) * itemScale;
-        final rowGap = (isPortrait ? h * 0.008 : h * 0.010) * (isPortrait ? 0.85 : 1.0);
-        final columnGap = (isPortrait ? h * 0.020 : h * 0.018) * (isPortrait ? 0.90 : 1.0);
+        final topSpace =
+            (isPortrait ? h * 0.018 : h * 0.010) * (isPortrait ? 0.90 : 1.0);
+        final betweenHeader =
+            (isPortrait ? h * 0.010 : h * 0.014) * itemScale;
+        final betweenListAndFooter =
+            (isPortrait ? h * 0.010 : h * 0.012) * itemScale;
+        final rowGap =
+            (isPortrait ? h * 0.008 : h * 0.010) * (isPortrait ? 0.85 : 1.0);
+        final columnGap =
+            (isPortrait ? h * 0.020 : h * 0.018) * (isPortrait ? 0.90 : 1.0);
 
         return Column(
           children: [
@@ -128,7 +133,9 @@ class MenuBoardWidget extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              SizedBox(width: isPortrait ? h * 0.012 : h * 0.018),
+                              SizedBox(
+                                width: isPortrait ? h * 0.012 : h * 0.018,
+                              ),
                               Text(
                                 (items[i]['price'] ?? '').toString(),
                                 textAlign: TextAlign.right,

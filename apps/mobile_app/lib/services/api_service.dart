@@ -4,11 +4,13 @@ import 'package:http/http.dart' as http;
 class ScreenStatus {
   final bool isOnline;
   final bool isPaired;
+  final bool isReachable;
   final int? contentVersion;
 
-  ScreenStatus({
+  const ScreenStatus({
     required this.isOnline,
     required this.isPaired,
+    required this.isReachable,
     this.contentVersion,
   });
 }
@@ -102,7 +104,6 @@ class ApiService {
       return const PairingInfoResult(success: false);
     }
   }
-
 
   Future<ApiResult> setScreenName(String screenName) async {
     final url = Uri.parse('$baseUrl/set-name');
@@ -212,36 +213,48 @@ class ApiService {
     }
   }
 
-  Future<ScreenStatus> getStatus() async {
+  Future<ScreenStatus> getStatus({
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
     final url = Uri.parse('$baseUrl/status');
 
     try {
-      final response = await http
-          .get(url)
-          .timeout(const Duration(seconds: 2));
+      final response = await http.get(url).timeout(timeout);
 
       if (response.statusCode != 200) {
-        return ScreenStatus(isOnline: false, isPaired: false);
+        return const ScreenStatus(
+          isOnline: false,
+          isPaired: false,
+          isReachable: false,
+        );
       }
 
       final decoded = jsonDecode(response.body);
 
       if (decoded is! Map<String, dynamic>) {
-        return ScreenStatus(isOnline: false, isPaired: false);
+        return const ScreenStatus(
+          isOnline: false,
+          isPaired: false,
+          isReachable: false,
+        );
       }
 
+      final success = decoded['success'] == true;
       final isPaired = decoded['paired'] == true;
       final statusValue = decoded['status']?.toString();
 
       return ScreenStatus(
-        isOnline: decoded['success'] == true &&
-            statusValue == 'ok' &&
-            isPaired,
+        isOnline: success && statusValue == 'ok' && isPaired,
         isPaired: isPaired,
+        isReachable: success,
         contentVersion: decoded['contentVersion'] as int?,
       );
     } catch (_) {
-      return ScreenStatus(isOnline: false, isPaired: false);
+      return const ScreenStatus(
+        isOnline: false,
+        isPaired: false,
+        isReachable: false,
+      );
     }
   }
 }

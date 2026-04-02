@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import '../models/screen.dart';
-import '../services/storage_service.dart';
 import '../services/api_service.dart';
-import 'screen_dashboard.dart';
+import '../services/storage_service.dart';
 import 'pairing_screen.dart';
+import 'screen_dashboard.dart';
 
 class ScreenListScreen extends StatefulWidget {
   const ScreenListScreen({super.key});
@@ -50,9 +50,9 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       screenStatuses.removeWhere((ip, _) => !ips.contains(ip));
     });
 
-    await _discoverKnownScreensInCurrentNetwork();
+    await _discoverScreensInCurrentNetwork(force: true);
     await _reloadFromStorage();
-    await refreshStatuses();
+    await refreshStatuses(runDiscovery: false);
   }
 
   Future<void> _reloadFromStorage() async {
@@ -73,13 +73,9 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     });
   }
 
-  bool _shouldRunDiscovery() {
-    if (screens.isEmpty) return false;
+  bool _shouldRunDiscovery({bool force = false}) {
+    if (force) return true;
     if (isDiscoveringScreens) return false;
-    if (screens.every((screen) =>
-        screen.deviceId == null || screen.deviceId!.trim().isEmpty)) {
-      return false;
-    }
 
     if (lastDiscoveryAt == null) return true;
 
@@ -87,18 +83,8 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     return diff.inSeconds >= 20;
   }
 
-  Future<void> _discoverKnownScreensInCurrentNetwork() async {
-    if (!_shouldRunDiscovery()) return;
-
-    final knownByDeviceId = <String, ScreenDevice>{};
-    for (final screen in screens) {
-      final deviceId = screen.deviceId?.trim();
-      if (deviceId != null && deviceId.isNotEmpty) {
-        knownByDeviceId[deviceId] = screen;
-      }
-    }
-
-    if (knownByDeviceId.isEmpty) return;
+  Future<void> _discoverScreensInCurrentNetwork({bool force = false}) async {
+    if (!_shouldRunDiscovery(force: force)) return;
 
     setState(() {
       isDiscoveringScreens = true;
@@ -120,7 +106,8 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
         candidates.add(ip);
       }
 
-      int updatedCount = 0;
+      int foundCount = 0;
+      final storage = StorageService();
 
       for (int start = 0; start < candidates.length; start += 24) {
         final batch = candidates.skip(start).take(24).toList();
@@ -136,57 +123,37 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
         );
 
         for (final result in results) {
+          final ip = result.key;
           final info = result.value;
-          final deviceId = info.deviceId?.trim();
 
-          if (!info.success || deviceId == null || deviceId.isEmpty) {
-            continue;
-          }
+          if (!info.success) continue;
 
-          final knownScreen = knownByDeviceId[deviceId];
-          if (knownScreen == null) {
-            continue;
-          }
+          final resolvedOrientation =
+              (info.orientation == 'portrait' || info.orientation == 'landscape')
+                  ? info.orientation!
+                  : 'landscape';
 
-          final newOrientation = (info.orientation == 'portrait' ||
-                  info.orientation == 'landscape')
-              ? info.orientation!
-              : knownScreen.orientation;
+          final resolvedName = _resolveScreenName(
+            info.screenName,
+            info.deviceId,
+            ip,
+          );
 
-          final liveName = info.screenName?.trim();
-          final newName = (liveName != null &&
-                  liveName.isNotEmpty &&
-                  !_isGenericFallbackName(liveName))
-              ? liveName
-              : knownScreen.name;
+          await storage.addOrUpdateScreen(
+            ScreenDevice(
+              ip: ip,
+              name: resolvedName,
+              orientation: resolvedOrientation,
+              deviceId: info.deviceId,
+            ),
+          );
 
-          if (knownScreen.ip != result.key ||
-              knownScreen.orientation != newOrientation ||
-              knownScreen.name != newName) {
-            final storage = StorageService();
-            await storage.addOrUpdateScreen(
-              knownScreen.copyWith(
-                ip: result.key,
-                name: newName,
-                orientation: newOrientation,
-              ),
-            );
-            updatedCount++;
-          }
+          foundCount++;
         }
       }
 
-      if (updatedCount > 0) {
+      if (foundCount > 0) {
         await _reloadFromStorage();
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '$updatedCount bekannte Screen-Adresse(n) im aktuellen Netzwerk aktualisiert',
-            ),
-          ),
-        );
       }
     } finally {
       if (!mounted) return;
@@ -196,12 +163,29 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     }
   }
 
+  String _resolveScreenName(String? liveName, String? deviceId, String ip) {
+    final trimmed = liveName?.trim() ?? '';
+    if (trimmed.isNotEmpty && !_isGenericFallbackName(trimmed)) {
+      return trimmed;
+    }
+
+    if (deviceId != null && deviceId.trim().isNotEmpty) {
+      final suffix = deviceId.trim();
+      final shortSuffix = suffix.length > 6 ? suffix.substring(0, 6) : suffix;
+      return 'Screen $shortSuffix';
+    }
+
+    return 'Screen $ip';
+  }
 
   bool _isGenericFallbackName(String value) {
     final normalized = value.trim();
     if (normalized.isEmpty) return false;
 
-    final genericPattern = RegExp(r'^Screen\s+[A-Z0-9]{4,}$', caseSensitive: false);
+    final genericPattern = RegExp(
+      r'^Screen(\s+[A-Z0-9\.\-]{3,})?$',
+      caseSensitive: false,
+    );
     return genericPattern.hasMatch(normalized);
   }
 
@@ -244,14 +228,26 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     return '${parts[0]}.${parts[1]}.${parts[2]}';
   }
 
-  Future<void> refreshStatuses() async {
-    if (screens.isEmpty) return;
+  Future<void> refreshStatuses({bool runDiscovery = true}) async {
     if (isRefreshingStatus) return;
 
     if (!mounted) return;
     setState(() {
       isRefreshingStatus = true;
     });
+
+    if (runDiscovery) {
+      await _discoverScreensInCurrentNetwork();
+      await _reloadFromStorage();
+    }
+
+    if (screens.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        isRefreshingStatus = false;
+      });
+      return;
+    }
 
     for (final screen in screens) {
       final api = ApiService('http://${screen.ip}:8080');
@@ -263,13 +259,13 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       });
     }
 
-    final hasOfflineScreens = screens.any((screen) {
+    final hasOfflineOrMovedScreens = screens.any((screen) {
       final status = screenStatuses[screen.ip];
-      return status == null || !status.isOnline;
+      return status == null || !status.isReachable;
     });
 
-    if (hasOfflineScreens) {
-      await _discoverKnownScreensInCurrentNetwork();
+    if (hasOfflineOrMovedScreens && runDiscovery) {
+      await _discoverScreensInCurrentNetwork(force: true);
       await _reloadFromStorage();
 
       for (final screen in screens) {
@@ -295,7 +291,7 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     statusRefreshTimer = Timer.periodic(
       const Duration(seconds: 10),
       (_) {
-        if (!mounted || isLoading || isRefreshingStatus || screens.isEmpty) {
+        if (!mounted || isLoading || isRefreshingStatus) {
           return;
         }
         refreshStatuses();
@@ -440,7 +436,8 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      result.error ?? 'Screen-Name konnte nicht gespeichert werden',
+                      result.error ??
+                          'Screen-Name konnte nicht gespeichert werden',
                     ),
                   ),
                 );
@@ -521,7 +518,8 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
         title: const Text('Screen entkoppeln'),
         content: Text(
           'Soll "${screen.name}" wirklich entkoppelt werden?\n\n'
-          'Der Screen löscht dabei sein Pairing und seinen Content.',
+          'Der Screen bleibt in deiner Liste sichtbar und kann danach direkt neu gekoppelt werden.\n'
+          'Am Screen selbst werden Pairing und Content entfernt.',
         ),
         actions: [
           TextButton(
@@ -543,18 +541,25 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       final success = await api.unpairDevice();
 
       if (success) {
-        final storage = StorageService();
-        await storage.deleteScreenByDeviceIdOrIp(
-          deviceId: screen.deviceId,
-          ip: screen.ip,
-        );
+        if (!mounted) return;
+
+        setState(() {
+          screenStatuses[screen.ip] = const ScreenStatus(
+            isOnline: false,
+            isPaired: false,
+            isReachable: false,
+          );
+        });
+
         await loadScreens();
 
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('"${screen.name}" wurde entkoppelt'),
+            content: Text(
+              '"${screen.name}" wurde entkoppelt und bleibt für neues Pairing in der Liste sichtbar',
+            ),
           ),
         );
       } else {
@@ -614,6 +619,14 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       );
     }
 
+    if (status.isReachable && !status.isPaired) {
+      return const Icon(
+        Icons.circle,
+        size: 16,
+        color: Colors.orange,
+      );
+    }
+
     return Icon(
       Icons.circle,
       size: 16,
@@ -625,10 +638,23 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     if (status == null) {
       return 'Status wird geprüft';
     }
-    return status.isOnline ? 'Online' : 'Offline';
+
+    if (status.isReachable && !status.isPaired) {
+      return 'Entkoppelt / wartet auf Pairing';
+    }
+
+    if (status.isOnline) {
+      return 'Online';
+    }
+
+    return 'Offline';
   }
 
   String _buildVersionText(ScreenDevice screen, ScreenStatus? status) {
+    if (status != null && status.isReachable && !status.isPaired) {
+      return 'Kein aktives Pairing am Screen';
+    }
+
     final liveVersion = status?.contentVersion;
     final lastSentVersion = screen.lastContentVersion;
 
@@ -682,6 +708,53 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.wifi_tethering,
+              size: 72,
+              color: Colors.blueGrey,
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Keine Screens gespeichert',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Die App sucht automatisch nach erreichbaren Screens im gleichen WLAN. Du kannst jederzeit auch manuell einen Screen koppeln.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: (isRefreshingStatus || isDiscoveringScreens)
+                  ? null
+                  : () => refreshStatuses(),
+              icon: (isRefreshingStatus || isDiscoveringScreens)
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              label: const Text('Erneut suchen'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _stopAutoRefresh();
@@ -715,9 +788,7 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
         ],
       ),
       body: screens.isEmpty
-          ? const Center(
-              child: Text('Keine Screens vorhanden'),
-            )
+          ? _buildEmptyState()
           : ListView.builder(
               itemCount: screens.length,
               itemBuilder: (context, index) {

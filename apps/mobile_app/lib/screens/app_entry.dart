@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/screen.dart';
-import '../services/storage_service.dart';
-import 'pairing_screen.dart';
 import 'screen_list_screen.dart';
 
 class AppEntry extends StatefulWidget {
@@ -13,7 +10,6 @@ class AppEntry extends StatefulWidget {
 
 class _AppEntryState extends State<AppEntry> {
   bool isLoading = true;
-  List<ScreenDevice> screens = [];
 
   @override
   void initState() {
@@ -22,13 +18,9 @@ class _AppEntryState extends State<AppEntry> {
   }
 
   Future<void> loadData() async {
-    final storage = StorageService();
-    final loadedScreens = await storage.loadScreens();
-
     if (!mounted) return;
 
     setState(() {
-      screens = loadedScreens;
       isLoading = false;
     });
   }
@@ -38,12 +30,6 @@ class _AppEntryState extends State<AppEntry> {
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (screens.isEmpty) {
-      return PairingScreen(
-        onPairedComplete: loadData,
       );
     }
 

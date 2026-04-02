@@ -33,6 +33,8 @@ class HeadlineBoardWidget extends StatelessWidget {
     required TextStyle style,
     required int maxLines,
     TextAlign textAlign = TextAlign.center,
+    TextOverflow overflow = TextOverflow.ellipsis,
+    bool softWrap = true,
   }) {
     if (text.trim().isEmpty) {
       return const SizedBox.shrink();
@@ -42,9 +44,30 @@ class HeadlineBoardWidget extends StatelessWidget {
       text,
       textAlign: textAlign,
       maxLines: maxLines,
-      softWrap: true,
-      overflow: TextOverflow.ellipsis,
+      softWrap: softWrap,
+      overflow: overflow,
       style: style,
+    );
+  }
+
+  Widget _singleLineFittedTitle(String text, TextStyle style) {
+    if (text.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.visible,
+          style: style,
+        ),
+      ),
     );
   }
 
@@ -55,8 +78,6 @@ class HeadlineBoardWidget extends StatelessWidget {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
 
-        // Welcome needs a safer title size in portrait so it does not wrap
-        // while promo should keep its large hero layout.
         final titleFont = isWelcome
             ? (isPortrait ? h * 0.082 : h * 0.145)
             : (isPortrait ? h * 0.055 : h * 0.085);
@@ -75,28 +96,29 @@ class HeadlineBoardWidget extends StatelessWidget {
           child: Column(
             children: [
               Spacer(flex: isWelcome ? 16 : 10),
-
               Flexible(
                 flex: isWelcome ? 14 : 12,
                 child: Center(
-                  child: _textBlock(
-                    title,
-                    style: titleStyleBuilder(titleFont),
-                    maxLines: isWelcome ? 1 : (isPortrait ? 2 : 1),
-                  ),
+                  child: isWelcome
+                      ? _singleLineFittedTitle(
+                          title,
+                          titleStyleBuilder(titleFont),
+                        )
+                      : _textBlock(
+                          title,
+                          style: titleStyleBuilder(titleFont),
+                          maxLines: isPortrait ? 2 : 1,
+                        ),
                 ),
               ),
-
-              SizedBox(height: isPortrait ? h * 0.020 : h * 0.020),
-
+              SizedBox(height: h * 0.020),
               if (!isWelcome) ...[
                 Flexible(
                   flex: 22,
                   child: Center(
-                    child: _textBlock(
+                    child: _singleLineFittedTitle(
                       highlightTitle,
-                      style: titleStyleBuilder(heroTitleFont),
-                      maxLines: isPortrait ? 3 : 2,
+                      titleStyleBuilder(heroTitleFont),
                     ),
                   ),
                 ),
@@ -104,29 +126,25 @@ class HeadlineBoardWidget extends StatelessWidget {
                 Flexible(
                   flex: 18,
                   child: Center(
-                    child: _textBlock(
+                    child: _singleLineFittedTitle(
                       highlightPrice,
-                      style: priceStyleBuilder(heroPriceFont),
-                      maxLines: 2,
+                      priceStyleBuilder(heroPriceFont),
                     ),
                   ),
                 ),
                 SizedBox(height: isPortrait ? h * 0.030 : h * 0.026),
               ],
-
               Flexible(
                 flex: isWelcome ? 10 : 12,
                 child: Center(
                   child: _textBlock(
                     subtitle,
                     style: bodyStyleBuilder(subtitleFont),
-                    maxLines: isPortrait ? 2 : 2,
+                    maxLines: 2,
                   ),
                 ),
               ),
-
-              SizedBox(height: isPortrait ? h * 0.018 : h * 0.018),
-
+              SizedBox(height: h * 0.018),
               Flexible(
                 flex: isWelcome ? 6 : 8,
                 child: Center(
@@ -137,7 +155,6 @@ class HeadlineBoardWidget extends StatelessWidget {
                   ),
                 ),
               ),
-
               Spacer(flex: isWelcome ? 22 : 10),
             ],
           ),
