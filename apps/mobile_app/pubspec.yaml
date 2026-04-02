@@ -1,0 +1,52 @@
+name: mobile_app
+description: Mobile App für Digitale Kreidetafel
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # HTTP Kommunikation mit Screen
+  http: ^1.2.1
+
+  # Speicherung von Daten
+  shared_preferences: ^2.2.2
+
+  # 👉 HIER rein
+  mobile_scanner: ^5.2.3
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: ConteScript
+      fonts:
+        - asset: assets/fonts/ConteScriptReduced.ttf
+
+    - family: Gobsmacked
+      fonts:
+        - asset: assets/fonts/Gobsmacked.otf
+
+    - family: KillingLoneliness
+      fonts:
+        - asset: assets/fonts/KillingLoneliness.ttf
+
+    - family: Tafelschrift
+      fonts:
+        - asset: assets/fonts/Tafelschrift.ttf

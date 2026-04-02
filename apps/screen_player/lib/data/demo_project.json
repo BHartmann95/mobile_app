@@ -1,0 +1,74 @@
+{
+  "projectId": "project_001",
+  "projectName": "Demo Gastro Projekt",
+
+  "screen": {
+    "orientation": "landscape",
+    "width": 1920,
+    "height": 1080
+  },
+
+  "slides": [
+    {
+      "slideId": "slide_welcome",
+      "templateId": "welcome",
+      "durationSeconds": 4,
+
+      "title": "Willkommen",
+      "subtitle": "Schön, dass du da bist",
+      "items": [],
+      "footer": "Guten Appetit",
+
+      "background": {
+        "type": "color",
+        "value": "#1B5E20"
+      }
+    },
+
+    {
+      "slideId": "slide_daily_screen_a",
+      "templateId": "daily_specials",
+      "durationSeconds": 6,
+
+      "devices": [
+        "DEVICE_ID_HIER_EINFÜGEN"
+      ],
+
+      "title": "Tagesmenü",
+      "subtitle": "Heute frisch",
+      "items": [
+        { "name": "Pizza + Cola", "price": "9,90 €" },
+        { "name": "Pasta Arrabiata", "price": "8,50 €" },
+        { "name": "Tiramisu", "price": "4,20 €" }
+      ],
+      "footer": "Solange der Vorrat reicht",
+
+      "background": {
+        "type": "color",
+        "value": "#111111"
+      }
+    },
+
+    {
+      "slideId": "slide_promo_screen_b",
+      "templateId": "promo",
+      "durationSeconds": 3,
+
+      "devices": [
+        "ANDERE_DEVICE_ID"
+      ],
+
+      "title": "Aktion",
+      "subtitle": "Happy Hour",
+      "items": [
+        { "name": "2 Cocktails", "price": "1 Gratis" }
+      ],
+      "footer": "Nur heute ab 18 Uhr",
+
+      "background": {
+        "type": "color",
+        "value": "#0D47A1"
+      }
+    }
+  ]
+}
