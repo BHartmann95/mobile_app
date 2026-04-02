@@ -4,15 +4,28 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'widgets/headline_board_widget.dart';
 import 'widgets/menu_board_widget.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await _configureFullscreen();
   runApp(const MyApp());
+}
+
+Future<void> _configureFullscreen() async {
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 }
 
 enum PlayerAppState {
@@ -42,7 +55,8 @@ class ScreenPlayerPage extends StatefulWidget {
   State<ScreenPlayerPage> createState() => _ScreenPlayerPageState();
 }
 
-class _ScreenPlayerPageState extends State<ScreenPlayerPage> {
+class _ScreenPlayerPageState extends State<ScreenPlayerPage>
+    with WidgetsBindingObserver {
   static const String _deviceIdKey = 'device_id';
   static const String _pairedKey = 'paired';
   static const String _screenNameKey = 'screen_name';
@@ -71,7 +85,22 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeApp();
+    _refreshFullscreenSoon();
+  }
+
+  Future<void> _refreshFullscreenSoon() async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+    await _configureFullscreen();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshFullscreenSoon();
+    }
   }
 
   Future<void> _initializeApp() async {
@@ -221,7 +250,6 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage> {
     return screenOrientation;
   }
 
-
   Future<void> _startLocalHttpServer() async {
     localServer?.close(force: true);
 
@@ -339,7 +367,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage> {
   Future<void> _handlePostPair(HttpRequest request) async {
     final body = await utf8.decoder.bind(request).join();
     final decoded = jsonDecode(body);
-  
+
     if (decoded is! Map<String, dynamic>) {
       request.response.statusCode = HttpStatus.badRequest;
       request.response.headers.contentType = ContentType.json;
@@ -504,9 +532,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage> {
 
     final body = await utf8.decoder.bind(request).join();
     final decoded = jsonDecode(body);
-    print('RAW CONTENT PAYLOAD: $decoded');
-    print('ORIENTATION RECEIVED: ${decoded['orientation']}');
-    
+
     if (decoded is! Map<String, dynamic>) {
       request.response.statusCode = HttpStatus.badRequest;
       request.response.headers.contentType = ContentType.json;
@@ -705,199 +731,142 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage> {
     return 10;
   }
 
-Color _getBoardColor() {
-  final style = contentPackage?['boardStyle']?.toString() ?? 'black';
+  Color _getBoardColor() {
+    final style = contentPackage?['boardStyle']?.toString() ?? 'black';
 
-  if (style == 'green') {
-    return const Color(0xFF1B5E20);
+    if (style == 'green') {
+      return const Color(0xFF1B5E20);
+    }
+
+    return const Color(0xFF111111);
   }
 
-  return const Color(0xFF111111);
-}
+  String _getContentOrientation() {
+    final contentValue =
+        contentPackage?['orientation']?.toString().toLowerCase();
 
-String _getContentOrientation() {
-  final contentValue = contentPackage?['orientation']?.toString().toLowerCase();
+    if (contentValue == 'portrait') {
+      return 'portrait';
+    }
 
-  if (contentValue == 'portrait') {
-    return 'portrait';
-  }
+    if (contentValue == 'landscape') {
+      return 'landscape';
+    }
 
-  if (contentValue == 'landscape') {
+    if (screenOrientation == 'portrait') {
+      return 'portrait';
+    }
+
     return 'landscape';
   }
 
-  if (screenOrientation == 'portrait') {
-    return 'portrait';
+  bool _isPortraitContent() {
+    return _getContentOrientation() == 'portrait';
   }
 
-  return 'landscape';
-}
+  String _getFontStyle([Map<String, dynamic>? slide]) {
+    final raw = (slide?['fontStyle'] ?? contentPackage?['fontStyle'])
+        ?.toString()
+        .toLowerCase()
+        .trim();
 
-bool _isPortraitContent() {
-  return _getContentOrientation() == 'portrait';
-}
-String _getFontStyle([Map<String, dynamic>? slide]) {
-  final raw = (slide?['fontStyle'] ?? contentPackage?['fontStyle'])
-      ?.toString()
-      .toLowerCase()
-      .trim();
-
-  switch (raw) {
-    case 'standard':
-    case 'normal':
-    case 'classic':
-      return 'standard';
-    case 'chalk':
-    case 'chalk1':
-    case 'chalk2':
-    case 'chalk3':
-    case 'kreide':
-    case 'schrift 1':
-    case 'schrift 2':
-    case 'schrift 3':
-    default:
-      return 'chalk';
-  }
-}
-
-TextStyle _getTitleStyle({
-  double fontSize = 48,
-  Map<String, dynamic>? slide,
-}) {
-  final fontStyle = _getFontStyle(slide);
-
-  switch (fontStyle) {
-    case 'chalk':
-      return TextStyle(
-        fontFamily: 'Gobsmacked',
-        fontFamilyFallback: const ['Roboto', 'Noto Sans'],
-        fontSize: fontSize,
-        color: const Color(0xFFF2E9DC),
-        height: 1.0,
-      );
-    default:
-      return TextStyle(
-        fontFamily: 'Roboto',
-        fontFamilyFallback: const ['Noto Sans'],
-        fontSize: fontSize,
-        color: const Color(0xFFF2E9DC),
-        height: 1.0,
-        fontWeight: FontWeight.w700,
-      );
-  }
-}
-
-TextStyle _getBodyStyle({
-  double fontSize = 28,
-  Map<String, dynamic>? slide,
-}) {
-  final fontStyle = _getFontStyle(slide);
-
-  switch (fontStyle) {
-    case 'chalk':
-      return TextStyle(
-        fontFamily: 'Gobsmacked',
-        fontFamilyFallback: const ['Roboto', 'Noto Sans'],
-        fontSize: fontSize,
-        color: const Color(0xFFF2E9DC),
-        height: 1.12,
-      );
-    default:
-      return TextStyle(
-        fontFamily: 'Roboto',
-        fontFamilyFallback: const ['Noto Sans'],
-        fontSize: fontSize,
-        color: const Color(0xFFF2E9DC),
-        height: 1.12,
-        fontWeight: FontWeight.w500,
-      );
-  }
-}
-
-TextStyle _getPriceStyle({
-  double fontSize = 34,
-  Map<String, dynamic>? slide,
-}) {
-  final fontStyle = _getFontStyle(slide);
-
-  switch (fontStyle) {
-    case 'chalk':
-      return TextStyle(
-        fontFamily: 'Gobsmacked',
-        fontFamilyFallback: const ['Roboto', 'Noto Sans'],
-        fontSize: fontSize,
-        color: const Color(0xFFF2E9DC),
-        height: 1.0,
-      );
-    default:
-      return TextStyle(
-        fontFamily: 'Roboto',
-        fontFamilyFallback: const ['Noto Sans'],
-        fontSize: fontSize,
-        color: const Color(0xFFF2E9DC),
-        height: 1.0,
-        fontWeight: FontWeight.w700,
-      );
-  }
-}
-
-  bool _isSoldOutItem(Map? item) {
-    return item?['soldOut'] == true;
-  }
-
-  String _menuItemDisplayName(Map? item) {
-    final name = item?['name']?.toString() ?? '';
-    if (_isSoldOutItem(item) && name.isNotEmpty) {
-      return name;
+    switch (raw) {
+      case 'standard':
+      case 'normal':
+      case 'classic':
+        return 'standard';
+      case 'chalk':
+      case 'chalk1':
+      case 'chalk2':
+      case 'chalk3':
+      case 'kreide':
+      case 'schrift 1':
+      case 'schrift 2':
+      case 'schrift 3':
+      default:
+        return 'chalk';
     }
-    return name;
   }
 
-  TextStyle _menuItemBodyStyle({
-    required double fontSize,
-    required Map? item,
+  TextStyle _getTitleStyle({
+    double fontSize = 48,
     Map<String, dynamic>? slide,
   }) {
-    final soldOut = _isSoldOutItem(item);
-    return _getBodyStyle(fontSize: fontSize, slide: slide).copyWith(
-      decoration: soldOut ? TextDecoration.lineThrough : null,
-      decorationColor: const Color(0xFFF2E9DC),
-      decorationThickness: soldOut ? 2 : null,
-      color: soldOut ? const Color(0xFFD7D1C7) : null,
-    );
+    final fontStyle = _getFontStyle(slide);
+
+    switch (fontStyle) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans'],
+          fontSize: fontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans'],
+          fontSize: fontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        );
+    }
   }
 
-  TextStyle _menuItemPriceStyle({
-    required double fontSize,
-    required Map? item,
+  TextStyle _getBodyStyle({
+    double fontSize = 28,
     Map<String, dynamic>? slide,
   }) {
-    final soldOut = _isSoldOutItem(item);
-    return _getPriceStyle(fontSize: fontSize, slide: slide).copyWith(
-      decoration: soldOut ? TextDecoration.lineThrough : null,
-      decorationColor: const Color(0xFFF2E9DC),
-      decorationThickness: soldOut ? 2 : null,
-      color: soldOut ? const Color(0xFFD7D1C7) : null,
-    );
+    final fontStyle = _getFontStyle(slide);
+
+    switch (fontStyle) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans'],
+          fontSize: fontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.12,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans'],
+          fontSize: fontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.12,
+          fontWeight: FontWeight.w500,
+        );
+    }
   }
 
-  Color _parseHexColor(String hex) {
-    String value = hex.replaceAll('#', '').trim();
+  TextStyle _getPriceStyle({
+    double fontSize = 34,
+    Map<String, dynamic>? slide,
+  }) {
+    final fontStyle = _getFontStyle(slide);
 
-    if (value.length == 6) {
-      value = 'FF$value';
+    switch (fontStyle) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans'],
+          fontSize: fontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans'],
+          fontSize: fontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        );
     }
-
-    if (value.length != 8) {
-      return Colors.black;
-    }
-
-    final colorInt = int.tryParse(value, radix: 16);
-    if (colorInt == null) {
-      return Colors.black;
-    }
-
-    return Color(colorInt);
   }
 
   void _startSlideTimer() {
@@ -1044,6 +1013,7 @@ TextStyle _getPriceStyle({
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     slideTimer?.cancel();
     localServer?.close(force: true);
     super.dispose();
@@ -1155,7 +1125,9 @@ TextStyle _getPriceStyle({
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: localIpAddress == null || pairingCode == null || pairingCode!.isEmpty
+                  child: localIpAddress == null ||
+                          pairingCode == null ||
+                          pairingCode!.isEmpty
                       ? const Center(
                           child: Text(
                             'QR wird vorbereitet...',
@@ -1258,7 +1230,7 @@ TextStyle _getPriceStyle({
     );
   }
 
-     Widget _buildPlayingScreen() {
+  Widget _buildPlayingScreen() {
     final slides = _getSlides();
 
     if (slides.isEmpty) {
@@ -1323,7 +1295,7 @@ TextStyle _getPriceStyle({
     );
   }
 
-     Widget _buildSlideContent(Map<String, dynamic> slide, String templateType) {
+  Widget _buildSlideContent(Map<String, dynamic> slide, String templateType) {
     switch (templateType) {
       case 'promo':
         return _buildPromoSlide(slide);
@@ -1340,7 +1312,6 @@ TextStyle _getPriceStyle({
         ? _buildMenuPortrait(slide)
         : _buildMenuLandscape(slide);
   }
-
 
   Widget _buildMenuLandscape(Map<String, dynamic> slide) {
     final items = ((slide['items'] as List?) ?? [])
@@ -1362,7 +1333,8 @@ TextStyle _getPriceStyle({
           pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
           titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
           bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-          priceStyleBuilder: (base) => _getPriceStyle(fontSize: base, slide: slide),
+          priceStyleBuilder: (base) =>
+              _getPriceStyle(fontSize: base, slide: slide),
         ),
       ),
     );
@@ -1388,7 +1360,8 @@ TextStyle _getPriceStyle({
           pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
           titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
           bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-          priceStyleBuilder: (base) => _getPriceStyle(fontSize: base, slide: slide),
+          priceStyleBuilder: (base) =>
+              _getPriceStyle(fontSize: base, slide: slide),
         ),
       ),
     );
@@ -1411,11 +1384,12 @@ TextStyle _getPriceStyle({
       isWelcome: false,
       titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
       bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base, slide: slide),
+      priceStyleBuilder: (base) =>
+          _getPriceStyle(fontSize: base, slide: slide),
     );
   }
 
-     Widget _buildPromoPortrait(Map<String, dynamic> slide) {
+  Widget _buildPromoPortrait(Map<String, dynamic> slide) {
     return HeadlineBoardWidget(
       title: slide['title']?.toString() ?? '',
       subtitle: slide['subtitle']?.toString() ?? '',
@@ -1426,7 +1400,8 @@ TextStyle _getPriceStyle({
       isWelcome: false,
       titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
       bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base, slide: slide),
+      priceStyleBuilder: (base) =>
+          _getPriceStyle(fontSize: base, slide: slide),
     );
   }
 
@@ -1447,11 +1422,12 @@ TextStyle _getPriceStyle({
       isWelcome: true,
       titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
       bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base, slide: slide),
+      priceStyleBuilder: (base) =>
+          _getPriceStyle(fontSize: base, slide: slide),
     );
   }
 
-    Widget _buildWelcomePortrait(Map<String, dynamic> slide) {
+  Widget _buildWelcomePortrait(Map<String, dynamic> slide) {
     return HeadlineBoardWidget(
       title: slide['title']?.toString() ?? '',
       subtitle: slide['subtitle']?.toString() ?? '',
@@ -1462,7 +1438,8 @@ TextStyle _getPriceStyle({
       isWelcome: true,
       titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
       bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base, slide: slide),
+      priceStyleBuilder: (base) =>
+          _getPriceStyle(fontSize: base, slide: slide),
     );
   }
 }
