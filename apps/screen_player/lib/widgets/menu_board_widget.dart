@@ -63,8 +63,17 @@ class MenuBoardWidget extends StatelessWidget {
 
         final titleFont = (isPortrait ? h * 0.070 : h * 0.095) * titleScale;
         final subtitleFont = (isPortrait ? h * 0.026 : h * 0.036) * itemScale;
-        final itemFont = (isPortrait ? h * 0.045 : h * 0.052) * itemScale;
+        final hasVeryLongItem = items.any((item) {
+          final name = (item['name'] ?? '').toString().trim();
+          return name.length >= (isPortrait ? 24 : 20);
+        });
+
+        final itemFont =
+            (isPortrait ? h * 0.045 : h * 0.052) *
+            itemScale *
+            (hasVeryLongItem ? 0.90 : 1.0);
         final priceFont = (isPortrait ? h * 0.043 : h * 0.050) * itemScale;
+        final soldOutFont = priceFont * (isPortrait ? 0.58 : 0.62);
         final footerFont = (isPortrait ? h * 0.018 : h * 0.022) * itemScale;
         final topSpace =
             (isPortrait ? h * 0.018 : h * 0.010) * (isPortrait ? 0.90 : 1.0);
@@ -116,38 +125,59 @@ class MenuBoardWidget extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         for (int i = 0; i < items.length; i++) ...[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  (items[i]['name'] ?? '').toString(),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: bodyStyleBuilder(itemFont).copyWith(
-                                    decoration: items[i]['soldOut'] == true
-                                        ? TextDecoration.lineThrough
-                                        : null,
-                                    decorationThickness:
-                                        items[i]['soldOut'] == true ? 2 : null,
+                          Builder(
+                            builder: (context) {
+                              final item = items[i];
+                              final isSoldOut = item['soldOut'] == true;
+                              final name = (item['name'] ?? '').toString();
+                              final price = (item['price'] ?? '').toString();
+
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      maxLines: isPortrait ? 3 : 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: bodyStyleBuilder(itemFont).copyWith(
+                                        color: isSoldOut
+                                            ? const Color(0xCCF2E9DC)
+                                            : null,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: isPortrait ? h * 0.012 : h * 0.018,
-                              ),
-                              Text(
-                                (items[i]['price'] ?? '').toString(),
-                                textAlign: TextAlign.right,
-                                style: priceStyleBuilder(priceFont).copyWith(
-                                  decoration: items[i]['soldOut'] == true
-                                      ? TextDecoration.lineThrough
-                                      : null,
-                                  decorationThickness:
-                                      items[i]['soldOut'] == true ? 2 : null,
-                                ),
-                              ),
-                            ],
+                                  SizedBox(
+                                    width: isPortrait ? h * 0.012 : h * 0.018,
+                                  ),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: constraints.maxWidth *
+                                          (isPortrait ? 0.34 : 0.30),
+                                    ),
+                                    child: Text(
+                                      isSoldOut ? 'AUSVERKAUFT' : price,
+                                      textAlign: TextAlign.right,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: priceStyleBuilder(
+                                        isSoldOut ? soldOutFont : priceFont,
+                                      ).copyWith(
+                                        color: isSoldOut
+                                            ? const Color(0xCCF2E9DC)
+                                            : null,
+                                        fontWeight: isSoldOut
+                                            ? FontWeight.w700
+                                            : null,
+                                        letterSpacing: isSoldOut
+                                            ? (isPortrait ? 0.4 : 0.6)
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           if (i != items.length - 1) SizedBox(height: rowGap),
                         ],

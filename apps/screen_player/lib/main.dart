@@ -283,6 +283,11 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
           return;
         }
 
+        if (request.method == 'GET' && path == '/content') {
+          await _handleGetContent(request);
+          return;
+        }
+
         if (request.method == 'POST' && path == '/content') {
           await _handlePostContent(request);
           return;
@@ -338,6 +343,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         'content': '/content',
         'setName': '/set-name',
       },
+      'hasContent': contentPackage != null,
     }));
 
     await request.response.close();
@@ -447,6 +453,47 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
       'success': true,
       'paired': false,
       'message': 'Gerät wurde entkoppelt',
+    }));
+    await request.response.close();
+  }
+
+
+  Future<void> _handleGetContent(HttpRequest request) async {
+    if (!paired) {
+      request.response.statusCode = HttpStatus.forbidden;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'Gerät ist nicht gekoppelt',
+      }));
+      await request.response.close();
+      return;
+    }
+
+    if (contentPackage == null) {
+      request.response.statusCode = HttpStatus.notFound;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'Am Screen ist aktuell kein gespeicherter Content vorhanden',
+        'deviceId': deviceId,
+        'screenName': screenName,
+        'contentVersion': contentVersion,
+        'orientation': _getContentOrientation(),
+      }));
+      await request.response.close();
+      return;
+    }
+
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(jsonEncode({
+      'success': true,
+      'deviceId': deviceId,
+      'screenName': screenName,
+      'contentVersion': contentVersion,
+      'orientation': _getContentOrientation(),
+      'content': contentPackage,
     }));
     await request.response.close();
   }

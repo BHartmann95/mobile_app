@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/template.dart';
 import '../models/saved_content.dart';
 import '../services/api_service.dart';
@@ -95,8 +96,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     super.initState();
 
     contentId =
-        widget.initialContent?.id ??
-        DateTime.now().millisecondsSinceEpoch.toString();
+        widget.initialContent?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
     if (widget.initialContent != null) {
       _applySavedContent(widget.initialContent!);
@@ -137,6 +137,21 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     setState(() {});
   }
 
+  String _normalizePriceInput(String? value) {
+    if (value == null) return '';
+    var normalized = value.trim();
+    normalized = normalized.replaceAll('€', '');
+    normalized = normalized.replaceAll(RegExp(r'\s+'), '');
+    return normalized;
+  }
+
+  String _displayPrice(String? value) {
+    final normalized = _normalizePriceInput(value);
+    if (normalized.isEmpty) return '';
+    return '$normalized €';
+  }
+
+
   _EditableSlide _createDefaultSlide(TemplateType type) {
     switch (type) {
       case TemplateType.menu:
@@ -144,9 +159,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           templateType: TemplateType.menu,
           titleController: TextEditingController(text: 'Tagesmenü'),
           subtitleController: TextEditingController(text: 'Heute frisch'),
-          footerController: TextEditingController(
-            text: 'Solange der Vorrat reicht',
-          ),
+          footerController:
+              TextEditingController(text: 'Solange der Vorrat reicht'),
           highlightTitleController: TextEditingController(),
           highlightPriceController: TextEditingController(),
           durationController: TextEditingController(text: '10'),
@@ -156,9 +170,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             TextEditingController(text: 'Tiramisu'),
           ],
           itemPriceControllers: [
-            TextEditingController(text: '9,90 €'),
-            TextEditingController(text: '8,50 €'),
-            TextEditingController(text: '4,20 €'),
+            TextEditingController(text: '9,90'),
+            TextEditingController(text: '8,50'),
+            TextEditingController(text: '4,20'),
           ],
           itemSoldOutControllers: [
             ValueNotifier<bool>(false),
@@ -189,9 +203,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         final slide = _EditableSlide(
           templateType: TemplateType.welcome,
           titleController: TextEditingController(text: 'Willkommen'),
-          subtitleController: TextEditingController(
-            text: 'Schön, dass Sie da sind',
-          ),
+          subtitleController:
+              TextEditingController(text: 'Schön, dass Sie da sind'),
           footerController: TextEditingController(text: 'Guten Appetit'),
           highlightTitleController: TextEditingController(),
           highlightPriceController: TextEditingController(),
@@ -211,24 +224,18 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       titleController: TextEditingController(text: slideData.title),
       subtitleController: TextEditingController(text: slideData.subtitle),
       footerController: TextEditingController(text: slideData.footer),
-      highlightTitleController: TextEditingController(
-        text: slideData.highlightTitle ?? '',
-      ),
-      highlightPriceController: TextEditingController(
-        text: slideData.highlightPrice ?? '',
-      ),
-      durationController: TextEditingController(
-        text: slideData.durationSeconds.toString(),
-      ),
-      itemNameControllers: slideData.items
-          .map((e) => TextEditingController(text: e.name))
-          .toList(),
-      itemPriceControllers: slideData.items
-          .map((e) => TextEditingController(text: e.price))
-          .toList(),
-      itemSoldOutControllers: slideData.items
-          .map((e) => ValueNotifier<bool>(e.soldOut))
-          .toList(),
+      highlightTitleController:
+          TextEditingController(text: slideData.highlightTitle ?? ''),
+      highlightPriceController:
+          TextEditingController(text: slideData.highlightPrice ?? ''),
+      durationController:
+          TextEditingController(text: slideData.durationSeconds.toString()),
+      itemNameControllers:
+          slideData.items.map((e) => TextEditingController(text: e.name)).toList(),
+      itemPriceControllers:
+          slideData.items.map((e) => TextEditingController(text: e.price)).toList(),
+      itemSoldOutControllers:
+          slideData.items.map((e) => ValueNotifier<bool>(e.soldOut)).toList(),
       textScale: slideData.textScale,
     );
 
@@ -428,7 +435,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         items: List.generate(slide.itemNameControllers.length, (itemIndex) {
           return SavedMenuItem(
             name: slide.itemNameControllers[itemIndex].text.trim(),
-            price: slide.itemPriceControllers[itemIndex].text.trim(),
+            price: _displayPrice(slide.itemPriceControllers[itemIndex].text),
             soldOut: slide.itemSoldOutControllers[itemIndex].value,
           );
         }).where((e) => e.name.isNotEmpty || e.price.isNotEmpty).toList(),
@@ -451,9 +458,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final content = SavedContent(
       id: contentId,
       name: name,
-      templateType: slides.isNotEmpty
-          ? slides.first.templateType
-          : widget.templateType,
+      templateType:
+          slides.isNotEmpty ? slides.first.templateType : widget.templateType,
       lastUsedScreenIp: widget.initialContent?.lastUsedScreenIp,
       slides: _buildSavedSlides(),
       boardStyle: boardStyle,
@@ -465,9 +471,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Inhalt gespeichert')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Inhalt gespeichert')),
+    );
   }
 
   Future<bool> _ensureScreenOnline() async {
@@ -567,6 +573,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       }
 
       final payload = _buildPayload();
+      print('EDITOR PAYLOAD: $payload');
+      print('EDITOR ORIENTATION: ${payload['orientation']}');
+
       final int contentVersion = payload['contentVersion'] as int;
 
       final api = ApiService('http://${widget.ip}:8080');
@@ -580,9 +589,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           name: libraryNameController.text.trim().isEmpty
               ? 'Neuer Inhalt'
               : libraryNameController.text.trim(),
-          templateType: slides.isNotEmpty
-              ? slides.first.templateType
-              : widget.templateType,
+          templateType:
+              slides.isNotEmpty ? slides.first.templateType : widget.templateType,
           lastUsedScreenIp: widget.ip,
           slides: _buildSavedSlides(),
           boardStyle: boardStyle,
@@ -644,7 +652,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
         final items = List.generate(slide.itemNameControllers.length, (i) {
           final name = slide.itemNameControllers[i].text.trim();
-          final price = slide.itemPriceControllers[i].text.trim();
+          final price = _displayPrice(slide.itemPriceControllers[i].text);
           final soldOut = slide.itemSoldOutControllers[i].value;
 
           return <String, dynamic>{
@@ -703,7 +711,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   title: Text(
                     'Slide ${index + 1} · ${_templateLabel(slide.templateType)}',
                   ),
-                  subtitle: Text('Dauer: ${_durationValue(slide)}s'),
+                  subtitle: Text(
+                    'Dauer: ${_durationValue(slide)}s',
+                  ),
                   selected: isSelected,
                   onTap: () {
                     setState(() {
@@ -721,6 +731,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   final temp = slides[index - 1];
                                   slides[index - 1] = slides[index];
                                   slides[index] = temp;
+
                                   selectedSlideIndex = index - 1;
                                 });
                               }
@@ -734,6 +745,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   final temp = slides[index + 1];
                                   slides[index + 1] = slides[index];
                                   slides[index] = temp;
+
                                   selectedSlideIndex = index + 1;
                                 });
                               }
@@ -851,7 +863,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         TextField(
           controller: currentSlide.durationController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Dauer in Sekunden'),
+          decoration: const InputDecoration(
+            labelText: 'Dauer in Sekunden',
+          ),
         ),
       ],
     );
@@ -876,7 +890,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   flex: 3,
                   child: TextField(
                     controller: currentSlide.itemNameControllers[index],
-                    decoration: InputDecoration(labelText: 'Name ${index + 1}'),
+                    decoration: InputDecoration(
+                      labelText: 'Name ${index + 1}',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -884,7 +900,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   flex: 2,
                   child: TextField(
                     controller: currentSlide.itemPriceControllers[index],
-                    decoration: InputDecoration(labelText: 'Preis ${index + 1}'),
+                    decoration: InputDecoration(
+                      labelText: 'Preis ${index + 1}',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -989,7 +1007,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return _normalizeFontStyle(fontStyle);
   }
 
-  TextStyle _getTitleStyle({required double fontSize}) {
+  TextStyle _getTitleStyle({
+    required double fontSize,
+  }) {
     final resolvedSize = fontSize * currentSlide.textScale;
     switch (_getPreviewFontMode()) {
       case 'chalk':
@@ -1012,7 +1032,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-  TextStyle _getBodyStyle({required double fontSize}) {
+  TextStyle _getBodyStyle({
+    required double fontSize,
+  }) {
     final resolvedSize = fontSize * currentSlide.textScale;
     switch (_getPreviewFontMode()) {
       case 'chalk':
@@ -1035,7 +1057,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-  TextStyle _getPriceStyle({required double fontSize}) {
+  TextStyle _getPriceStyle({
+    required double fontSize,
+  }) {
     final resolvedSize = fontSize * currentSlide.textScale;
     switch (_getPreviewFontMode()) {
       case 'chalk':
@@ -1058,6 +1082,34 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
+  Widget _buildFittedHeadline(
+    String text, {
+    required TextStyle style,
+    Color? color,
+  }) {
+    if (text.trim().isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SizedBox(
+          width: constraints.maxWidth,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              softWrap: false,
+              maxLines: 1,
+              style: style.copyWith(color: color ?? style.color),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   int _maxMenuItemsPerSlide({bool? portrait}) {
     final usePortrait = portrait ?? _isPortraitPreview();
     return usePortrait ? 10 : 6;
@@ -1065,35 +1117,58 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   int _menuPreviewPageCount() {
     if (currentSlide.templateType != TemplateType.menu) return 1;
-    final items = _currentMenuItems();
+    final items = _visiblePreviewMenuItems();
     final maxItems = _maxMenuItemsPerSlide();
     if (items.isEmpty) return 1;
     return (items.length / maxItems).ceil();
   }
 
-  List<Map<String, dynamic>> _visiblePreviewMenuItems() {
+  List<Map<String, String>> _visiblePreviewMenuItems() {
     final items = _currentMenuItems();
     final maxItems = _maxMenuItemsPerSlide();
     if (items.length <= maxItems) return items;
     return items.take(maxItems).toList();
   }
 
-  List<Map<String, dynamic>> _currentMenuItems() {
+  Map<String, double> _getMenuScaleConfig(int itemCount, {required bool portrait}) {
+    if (portrait) {
+      return {
+        'title': 64,
+        'subtitle': 24,
+        'item': 42,
+        'price': 40,
+        'footer': 18,
+        'gap': 20,
+        'top': 38,
+        'bottom': 28,
+        'blockWidth': 0.92,
+      };
+    }
+
+    return {
+      'title': 64,
+      'subtitle': 24,
+      'item': 36,
+      'price': 34,
+      'footer': 18,
+      'gap': 18,
+      'top': 18,
+      'bottom': 20,
+      'blockWidth': 0.78,
+    };
+  }
+
+  List<Map<String, String>> _currentMenuItems() {
     return List.generate(currentSlide.itemNameControllers.length, (index) {
       return {
         'name': currentSlide.itemNameControllers[index].text.trim(),
-        'price': currentSlide.itemPriceControllers[index].text.trim(),
-        'soldOut': currentSlide.itemSoldOutControllers[index].value,
+        'price': _displayPrice(currentSlide.itemPriceControllers[index].text),
       };
-    }).where((e) {
-      return e['name'].toString().isNotEmpty || e['price'].toString().isNotEmpty;
-    }).toList();
+    }).where((e) => e['name']!.isNotEmpty || e['price']!.isNotEmpty).toList();
   }
 
   Widget _buildPreviewCard() {
     final isPortrait = _isPortraitPreview();
-    final virtualWidth = isPortrait ? 1080.0 : 1920.0;
-    final virtualHeight = isPortrait ? 1920.0 : 1080.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1109,57 +1184,65 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               aspectRatio: isPortrait ? 9 / 16 : 16 / 9,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  alignment: Alignment.center,
-                  child: SizedBox(
-                    width: virtualWidth,
-                    height: virtualHeight,
-                    child: Container(
-                      color: _getBoardColor(),
-                      child: Stack(
+                child: Container(
+                  color: _getBoardColor(),
+                  child: LayoutBuilder(
+                    builder: (context, box) {
+                      final previewScale = isPortrait
+                          ? math.min(box.maxWidth / 1080, box.maxHeight / 1920)
+                          : math.min(box.maxWidth / 1920, box.maxHeight / 1080);
+
+                      final usesHeadlinePreview =
+                          currentSlide.templateType == TemplateType.promo ||
+                          currentSlide.templateType == TemplateType.welcome;
+
+                      return Stack(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 80,
-                              vertical: 60,
-                            ),
-                            child: _buildPreviewSlideContent(),
+                            padding: usesHeadlinePreview
+                                ? EdgeInsets.symmetric(
+                                    horizontal: box.maxWidth * 0.07,
+                                    vertical: box.maxHeight * 0.055,
+                                  )
+                                : EdgeInsets.symmetric(
+                                    horizontal: 80 * previewScale,
+                                    vertical: 60 * previewScale,
+                                  ),
+                            child: _buildPreviewSlideContent(previewScale),
                           ),
                           Positioned(
-                            left: 16,
-                            bottom: 16,
+                            left: 16 * previewScale,
+                            bottom: 16 * previewScale,
                             child: Opacity(
                               opacity: 0.35,
                               child: Text(
                                 widget.screenName,
-                                style: const TextStyle(
-                                  fontSize: 14,
+                                style: TextStyle(
+                                  fontSize: 14 * previewScale,
                                   color: Colors.white,
                                 ),
                               ),
                             ),
                           ),
                           Positioned(
-                            right: 16,
-                            bottom: 16,
+                            right: 16 * previewScale,
+                            bottom: 16 * previewScale,
                             child: Opacity(
                               opacity: 0.35,
                               child: Text(
-                                currentSlide.templateType == TemplateType.menu &&
-                                        _menuPreviewPageCount() > 1
+                                currentSlide.templateType == TemplateType.menu && _menuPreviewPageCount() > 1
                                     ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_menuPreviewPageCount()} · ${_durationValue(currentSlide)}s'
                                     : 'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
-                                style: const TextStyle(
-                                  fontSize: 14,
+                                style: TextStyle(
+                                  fontSize: 14 * previewScale,
                                   color: Colors.white,
                                 ),
                               ),
                             ),
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -1170,48 +1253,54 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildPreviewSlideContent() {
-    switch (currentSlide.templateType) {
-      case TemplateType.menu:
-        return _buildMenuPreview();
-      case TemplateType.promo:
-        return _buildPromoPreview();
-      case TemplateType.welcome:
-        return _buildWelcomePreview();
-    }
+  Widget _buildPreviewSlideContent(double scale) {
+  switch (currentSlide.templateType) {
+    case TemplateType.menu:
+      return _buildMenuPreview(scale);
+    case TemplateType.promo:
+      return _buildPromoPreview(scale);
+    case TemplateType.welcome:
+      return _buildWelcomePreview(scale);
+  }
+}
+
+Widget _buildMenuPreview(double scale) {
+  return MenuBoardWidget(
+    title: currentSlide.titleController.text.trim(),
+    subtitle: currentSlide.subtitleController.text.trim(),
+    footer: currentSlide.footerController.text.trim(),
+    items: List.generate(currentSlide.itemNameControllers.length, (index) {
+      return {
+        'name': currentSlide.itemNameControllers[index].text.trim(),
+        'price': _displayPrice(currentSlide.itemPriceControllers[index].text),
+        'soldOut': currentSlide.itemSoldOutControllers[index].value,
+      };
+    }).where((e) {
+      return (e['name'] ?? '').toString().isNotEmpty ||
+          (e['price'] ?? '').toString().isNotEmpty;
+    }).toList(),
+    isPortrait: _isPortraitPreview(),
+    pageLabel: null,
+    titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
+    bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
+    priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
+  );
+}
+
+  Widget _buildPromoPreview(double scale) {
+    return _isPortraitPreview()
+        ? _buildPromoPortraitPreview(scale)
+        : _buildPromoLandscapePreview(scale);
   }
 
-  Widget _buildMenuPreview() {
-    final visibleItems = _visiblePreviewMenuItems();
-
-    return Center(
-      child: FractionallySizedBox(
-        widthFactor: 0.92,
-        child: MenuBoardWidget(
-          title: currentSlide.titleController.text.trim(),
-          subtitle: currentSlide.subtitleController.text.trim(),
-          footer: currentSlide.footerController.text.trim(),
-          items: visibleItems,
-          isPortrait: _isPortraitPreview(),
-          pageLabel: _menuPreviewPageCount() > 1
-              ? 'Teil 1 von ${_menuPreviewPageCount()}'
-              : null,
-          titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
-          bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
-          priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPromoPreview() {
+  Widget _buildPromoLandscapePreview(double scale) {
     return HeadlineBoardWidget(
       title: currentSlide.titleController.text.trim(),
       subtitle: currentSlide.subtitleController.text.trim(),
       footer: currentSlide.footerController.text.trim(),
       highlightTitle: currentSlide.highlightTitleController.text.trim(),
       highlightPrice: currentSlide.highlightPriceController.text.trim(),
-      isPortrait: _isPortraitPreview(),
+      isPortrait: false,
       isWelcome: false,
       titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
       bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
@@ -1219,14 +1308,50 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildWelcomePreview() {
+  Widget _buildPromoPortraitPreview(double scale) {
+    return HeadlineBoardWidget(
+      title: currentSlide.titleController.text.trim(),
+      subtitle: currentSlide.subtitleController.text.trim(),
+      footer: currentSlide.footerController.text.trim(),
+      highlightTitle: currentSlide.highlightTitleController.text.trim(),
+      highlightPrice: currentSlide.highlightPriceController.text.trim(),
+      isPortrait: true,
+      isWelcome: false,
+      titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
+      bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
+      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
+    );
+  }
+
+  Widget _buildWelcomePreview(double scale) {
+    return _isPortraitPreview()
+        ? _buildWelcomePortraitPreview(scale)
+        : _buildWelcomeLandscapePreview(scale);
+  }
+
+  Widget _buildWelcomeLandscapePreview(double scale) {
     return HeadlineBoardWidget(
       title: currentSlide.titleController.text.trim(),
       subtitle: currentSlide.subtitleController.text.trim(),
       footer: currentSlide.footerController.text.trim(),
       highlightTitle: '',
       highlightPrice: '',
-      isPortrait: _isPortraitPreview(),
+      isPortrait: false,
+      isWelcome: true,
+      titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
+      bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
+      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
+    );
+  }
+
+  Widget _buildWelcomePortraitPreview(double scale) {
+    return HeadlineBoardWidget(
+      title: currentSlide.titleController.text.trim(),
+      subtitle: currentSlide.subtitleController.text.trim(),
+      footer: currentSlide.footerController.text.trim(),
+      highlightTitle: '',
+      highlightPrice: '',
+      isPortrait: true,
       isWelcome: true,
       titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
       bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),

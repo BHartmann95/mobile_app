@@ -278,36 +278,6 @@ class ScreenDashboardPage extends StatelessWidget {
             onTap: () => _openContentLibrary(context),
             primary: false,
           ),
-          const SizedBox(height: 24),
-          Card(
-            elevation: 1,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Hinweis',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Gespeicherte Inhalte merken sich, an welchen Screen sie zuletzt gesendet wurden. Darüber kannst du einen Screen-Inhalt künftig direkt wieder öffnen und ändern.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );

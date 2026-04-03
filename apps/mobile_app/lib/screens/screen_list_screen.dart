@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import 'pairing_screen.dart';
 import 'screen_dashboard.dart';
+import 'content_library_screen.dart';
 
 class ScreenListScreen extends StatefulWidget {
   const ScreenListScreen({super.key});
@@ -302,6 +303,75 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
   void _stopAutoRefresh() {
     statusRefreshTimer?.cancel();
     statusRefreshTimer = null;
+  }
+
+
+  Future<void> _openContentLibraryQuickAccess() async {
+    if (screens.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Bitte zuerst einen Screen hinzufügen oder im gleichen WLAN finden lassen.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (screens.length == 1) {
+      final screen = screens.first;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ContentLibraryScreen(
+            ip: screen.ip,
+            screenName: screen.name,
+            screenOrientation: screen.orientation,
+          ),
+        ),
+      );
+      await loadScreens();
+      return;
+    }
+
+    final selectedScreen = await showModalBottomSheet<ScreenDevice>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Mediathek für welchen Screen öffnen?'),
+            ),
+            ...screens.map(
+              (screen) => ListTile(
+                leading: const Icon(Icons.tv),
+                title: Text(screen.name),
+                subtitle: Text(
+                  '${screen.ip} · ${screen.orientation == 'portrait' ? 'Portrait' : 'Landscape'}',
+                ),
+                onTap: () => Navigator.pop(context, screen),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || selectedScreen == null) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContentLibraryScreen(
+          ip: selectedScreen.ip,
+          screenName: selectedScreen.name,
+          screenOrientation: selectedScreen.orientation,
+        ),
+      ),
+    );
+    await loadScreens();
   }
 
   Future<void> openScreen(ScreenDevice screen) async {
@@ -799,9 +869,23 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: addScreen,
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'library_fab',
+            mini: true,
+            onPressed: _openContentLibraryQuickAccess,
+            child: const Icon(Icons.library_books_outlined),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'add_screen_fab',
+            onPressed: addScreen,
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
