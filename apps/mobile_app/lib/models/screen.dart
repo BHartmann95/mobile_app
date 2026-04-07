@@ -9,6 +9,7 @@ class ScreenDevice {
   final DateTime? lastOpenedAt;
   final DateTime? lastContentSentAt;
   final int? lastContentVersion;
+  final String? lastContentName;
 
   const ScreenDevice({
     required this.ip,
@@ -18,6 +19,7 @@ class ScreenDevice {
     this.lastOpenedAt,
     this.lastContentSentAt,
     this.lastContentVersion,
+    this.lastContentName,
   });
 
   ScreenDevice copyWith({
@@ -28,6 +30,7 @@ class ScreenDevice {
     DateTime? lastOpenedAt,
     DateTime? lastContentSentAt,
     int? lastContentVersion,
+    String? lastContentName,
     bool clearDeviceId = false,
     bool clearLastOpenedAt = false,
     bool clearLastContentSentAt = false,
@@ -47,6 +50,9 @@ class ScreenDevice {
       lastContentVersion: clearLastContentVersion
           ? null
           : (lastContentVersion ?? this.lastContentVersion),
+      lastContentName: clearLastContentVersion
+          ? null
+          : (lastContentName ?? this.lastContentName),
     );
   }
 
@@ -60,6 +66,7 @@ class ScreenDevice {
       lastContentSentAt:
           DateTime.tryParse(json['lastContentSentAt'] as String? ?? ''),
       lastContentVersion: json['lastContentVersion'] as int?,
+      lastContentName: json['lastContentName'] as String?,
     );
   }
 
@@ -72,6 +79,7 @@ class ScreenDevice {
       'lastOpenedAt': lastOpenedAt?.toIso8601String(),
       'lastContentSentAt': lastContentSentAt?.toIso8601String(),
       'lastContentVersion': lastContentVersion,
+      'lastContentName': lastContentName,
     };
   }
 

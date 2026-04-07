@@ -52,6 +52,46 @@ class MenuBoardWidget extends StatelessWidget {
     return 0.98;
   }
 
+  int _longestWordLength(String text) {
+    final words = text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((e) => e.trim().isNotEmpty)
+        .toList();
+    if (words.isEmpty) return 0;
+    return words.map((e) => e.length).reduce((a, b) => a > b ? a : b);
+  }
+
+  double _getSingleWordAdjustment(List<Map<String, dynamic>> items) {
+    final longestWord = items
+        .map((item) => _longestWordLength((item['name'] ?? '').toString()))
+        .fold<int>(0, (a, b) => a > b ? a : b);
+
+    if (isPortrait) {
+      if (longestWord >= 16) return 0.94;
+      if (longestWord >= 14) return 0.97;
+      return 1.0;
+    }
+
+    if (longestWord >= 18) return 0.94;
+    if (longestWord >= 15) return 0.97;
+    return 1.0;
+  }
+
+  double _priceColumnWidthFactor(bool hasSoldOutItems) {
+    if (isPortrait) {
+      return hasSoldOutItems ? 0.34 : 0.22;
+    }
+    return hasSoldOutItems ? 0.30 : 0.20;
+  }
+
+  int _nameMaxLines(bool hasSoldOutItems) {
+    if (isPortrait) {
+      return hasSoldOutItems ? 3 : 2;
+    }
+    return 2;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -60,9 +100,12 @@ class MenuBoardWidget extends StatelessWidget {
         final itemCount = items.length;
         final itemScale = _getItemScaleFactor(itemCount);
         final titleScale = _getTitleScaleFactor(itemCount);
+        final singleWordAdjustment = _getSingleWordAdjustment(items);
+        final hasSoldOutItems = items.any((item) => item['soldOut'] == true);
 
         final titleFont = (isPortrait ? h * 0.070 : h * 0.095) * titleScale;
         final subtitleFont = (isPortrait ? h * 0.026 : h * 0.036) * itemScale;
+
         final hasVeryLongItem = items.any((item) {
           final name = (item['name'] ?? '').toString().trim();
           return name.length >= (isPortrait ? 24 : 20);
@@ -71,7 +114,9 @@ class MenuBoardWidget extends StatelessWidget {
         final itemFont =
             (isPortrait ? h * 0.045 : h * 0.052) *
             itemScale *
-            (hasVeryLongItem ? 0.90 : 1.0);
+            (hasVeryLongItem ? 0.95 : 1.0) *
+            singleWordAdjustment;
+
         final priceFont = (isPortrait ? h * 0.043 : h * 0.050) * itemScale;
         final soldOutFont = priceFont * (isPortrait ? 0.58 : 0.62);
         final footerFont = (isPortrait ? h * 0.018 : h * 0.022) * itemScale;
@@ -85,6 +130,9 @@ class MenuBoardWidget extends StatelessWidget {
             (isPortrait ? h * 0.008 : h * 0.010) * (isPortrait ? 0.85 : 1.0);
         final columnGap =
             (isPortrait ? h * 0.020 : h * 0.018) * (isPortrait ? 0.90 : 1.0);
+        final priceColumnWidth =
+            constraints.maxWidth * _priceColumnWidthFactor(hasSoldOutItems);
+        final nameLines = _nameMaxLines(hasSoldOutItems);
 
         return Column(
           children: [
@@ -138,8 +186,9 @@ class MenuBoardWidget extends StatelessWidget {
                                   Expanded(
                                     child: Text(
                                       name,
-                                      maxLines: isPortrait ? 3 : 2,
-                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: nameLines,
+                                      softWrap: true,
+                                      overflow: TextOverflow.fade,
                                       style: bodyStyleBuilder(itemFont).copyWith(
                                         color: isSoldOut
                                             ? const Color(0xCCF2E9DC)
@@ -148,30 +197,35 @@ class MenuBoardWidget extends StatelessWidget {
                                     ),
                                   ),
                                   SizedBox(
-                                    width: isPortrait ? h * 0.012 : h * 0.018,
+                                    width: isPortrait ? h * 0.010 : h * 0.014,
                                   ),
-                                  ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: constraints.maxWidth *
-                                          (isPortrait ? 0.34 : 0.30),
-                                    ),
-                                    child: Text(
-                                      isSoldOut ? 'AUSVERKAUFT' : price,
-                                      textAlign: TextAlign.right,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: priceStyleBuilder(
-                                        isSoldOut ? soldOutFont : priceFont,
-                                      ).copyWith(
-                                        color: isSoldOut
-                                            ? const Color(0xCCF2E9DC)
-                                            : null,
-                                        fontWeight: isSoldOut
-                                            ? FontWeight.w700
-                                            : null,
-                                        letterSpacing: isSoldOut
-                                            ? (isPortrait ? 0.4 : 0.6)
-                                            : null,
+                                  SizedBox(
+                                    width: priceColumnWidth,
+                                    child: Align(
+                                      alignment: Alignment.topRight,
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          isSoldOut ? 'AUSVERKAUFT' : price,
+                                          textAlign: TextAlign.right,
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.visible,
+                                          style: priceStyleBuilder(
+                                            isSoldOut ? soldOutFont : priceFont,
+                                          ).copyWith(
+                                            color: isSoldOut
+                                                ? const Color(0xCCF2E9DC)
+                                                : null,
+                                            fontWeight: isSoldOut
+                                                ? FontWeight.w700
+                                                : null,
+                                            letterSpacing: isSoldOut
+                                                ? (isPortrait ? 0.4 : 0.6)
+                                                : null,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),

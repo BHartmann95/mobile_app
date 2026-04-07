@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/saved_content.dart';
+import '../models/screen.dart';
 import '../models/template.dart';
 import '../services/api_service.dart';
 import '../services/content_storage_service.dart';
@@ -9,8 +10,15 @@ import 'template_editor_screen.dart';
 enum ContentLibraryFilter {
   all,
   menu,
+  drinks,
   promo,
   welcome,
+}
+
+enum ContentOrientationFilter {
+  all,
+  portrait,
+  landscape,
 }
 
 class ContentLibraryScreen extends StatefulWidget {
@@ -36,6 +44,8 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
   final searchController = TextEditingController();
   ContentLibraryFilter selectedFilter = ContentLibraryFilter.all;
+  ContentOrientationFilter selectedOrientationFilter =
+      ContentOrientationFilter.all;
 
   @override
   void initState() {
@@ -68,20 +78,44 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     return content.templateType ?? TemplateType.menu;
   }
 
+  String _normalizedContentOrientation(SavedContent content) {
+    final normalized = content.orientation.trim().toLowerCase();
+    if (normalized == 'portrait' || normalized == 'landscape') {
+      return normalized;
+    }
+    return 'unknown';
+  }
+
+  String _resolvedEditorOrientation(SavedContent content) {
+    final normalized = _normalizedContentOrientation(content);
+    if (normalized == 'portrait' || normalized == 'landscape') {
+      return normalized;
+    }
+    return widget.screenOrientation;
+  }
+
   List<SavedContent> _filteredContents() {
     final query = searchController.text.trim().toLowerCase();
 
     return contents.where((content) {
       final primaryType = _primaryTypeOf(content);
+      final contentOrientation = _normalizedContentOrientation(content);
 
-      final matchesFilter = switch (selectedFilter) {
+      final matchesTemplateFilter = switch (selectedFilter) {
         ContentLibraryFilter.all => true,
         ContentLibraryFilter.menu => primaryType == TemplateType.menu,
+        ContentLibraryFilter.drinks => primaryType == TemplateType.drinks,
         ContentLibraryFilter.promo => primaryType == TemplateType.promo,
         ContentLibraryFilter.welcome => primaryType == TemplateType.welcome,
       };
 
-      if (!matchesFilter) {
+      final matchesOrientationFilter = switch (selectedOrientationFilter) {
+        ContentOrientationFilter.all => true,
+        ContentOrientationFilter.portrait => contentOrientation == 'portrait',
+        ContentOrientationFilter.landscape => contentOrientation == 'landscape',
+      };
+
+      if (!matchesTemplateFilter || !matchesOrientationFilter) {
         return false;
       }
 
@@ -103,6 +137,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
       final haystack = [
         content.name,
+        contentOrientation,
         slideText,
       ].join(' ').toLowerCase();
 
@@ -121,7 +156,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
         builder: (_) => TemplateEditorScreen(
           ip: widget.ip,
           screenName: widget.screenName,
-          screenOrientation: widget.screenOrientation,
+          screenOrientation: _resolvedEditorOrientation(content),
           templateType: _primaryTypeOf(content),
           initialContent: content,
         ),
@@ -157,9 +192,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
     if (newName == null || newName.trim().isEmpty) return;
 
-    final renamed = content.copyWith(
-      name: newName.trim(),
-    );
+    final renamed = content.copyWith(name: newName.trim());
 
     final storage = ContentStorageService();
     await storage.addOrUpdateContent(renamed);
@@ -244,45 +277,6 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     await loadContents();
   }
 
-  Future<bool> _ensureScreenOnline() async {
-    final api = ApiService('http://${widget.ip}:8080');
-    final status = await api.getStatus();
-
-    if (status.isOnline) {
-      return true;
-    }
-
-    if (!mounted) return false;
-
-    final retry = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Screen offline'),
-        content: Text(
-          '"${widget.screenName}" ist aktuell nicht erreichbar.\n\n'
-          'Bitte prüfen, ob der Player geöffnet ist und sich das Gerät im selben WLAN befindet.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Erneut prüfen'),
-          ),
-        ],
-      ),
-    );
-
-    if (retry != true) {
-      return false;
-    }
-
-    final retryStatus = await api.getStatus();
-    return retryStatus.isOnline;
-  }
-
   Future<void> _showSendErrorDialog({
     required String title,
     required String message,
@@ -312,97 +306,14 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     );
   }
 
-  Future<void> sendContentToScreen(SavedContent content) async {
-    setState(() {
-      sendingContentId = content.id;
-    });
-
-    try {
-      final isOnline = await _ensureScreenOnline();
-
-      if (!isOnline) {
-        if (!mounted) return;
-
-        await _showSendErrorDialog(
-          title: 'Senden nicht möglich',
-          message:
-              'Der Screen "${widget.screenName}" ist offline oder antwortet nicht.',
-          onRetry: () => sendContentToScreen(content),
-        );
-
-        if (!mounted) return;
-        setState(() {
-          sendingContentId = null;
-        });
-        return;
-      }
-
-      final api = ApiService('http://${widget.ip}:8080');
-      final payload = _buildPayloadFromSavedContent(content);
-      print('LIBRARY PAYLOAD: $payload');
-      print('LIBRARY ORIENTATION: ${payload['orientation']}');
-      
-      final int contentVersion = payload['contentVersion'] as int;
-
-      final result = await api.sendContent(payload);
-
-      if (!mounted) return;
-
-      if (result.success) {
-        final updated = content.copyWith(
-          lastUsedScreenIp: widget.ip,
-        );
-
-        final contentStorage = ContentStorageService();
-        await contentStorage.addOrUpdateContent(updated);
-
-        final screenStorage = StorageService();
-        await screenStorage.markContentSent(
-          ip: widget.ip,
-          contentVersion: contentVersion,
-        );
-
-        await loadContents();
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '"${content.name}" mit ${content.slides.length} Slide(s) wurde gesendet',
-            ),
-          ),
-        );
-      } else {
-        await _showSendErrorDialog(
-          title: 'Senden fehlgeschlagen',
-          message: result.error ?? 'Content konnte nicht gesendet werden.',
-          onRetry: () => sendContentToScreen(content),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-
-      await _showSendErrorDialog(
-        title: 'Fehler beim Senden',
-        message: 'Es ist ein unerwarteter Fehler aufgetreten:\n$e',
-        onRetry: () => sendContentToScreen(content),
-      );
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      sendingContentId = null;
-    });
-  }
-
   Map<String, dynamic> _buildPayloadFromSavedContent(SavedContent content) {
     final contentVersion = DateTime.now().millisecondsSinceEpoch;
+    final orientation = _normalizedContentOrientation(content);
 
     return {
       'contentVersion': contentVersion,
-      'orientation': widget.screenOrientation,
+      'contentName': content.name,
+      'orientation': orientation == 'unknown' ? widget.screenOrientation : orientation,
       'boardStyle': content.boardStyle,
       'fontStyle': content.fontStyle,
       'slides': List.generate(content.slides.length, (index) {
@@ -430,6 +341,352 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
         };
       }),
     };
+  }
+
+  Future<List<ScreenDevice>> _loadAvailableScreens() async {
+    final storage = StorageService();
+    return storage.loadScreens();
+  }
+
+  Future<List<ScreenDevice>?> _showMultiSendDialog(
+    List<ScreenDevice> screens,
+    SavedContent content,
+  ) async {
+    final selectedIps = <String>{};
+    final contentOrientation = _normalizedContentOrientation(content);
+
+    final matchingScreens = contentOrientation == 'unknown'
+        ? screens
+        : screens.where((screen) => screen.orientation == contentOrientation).toList();
+
+    for (final screen in matchingScreens) {
+      selectedIps.add(screen.ip);
+    }
+
+    return showDialog<List<ScreenDevice>>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('An welche Screens senden?'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: screens.isEmpty
+                  ? const Text('Keine Screens gespeichert.')
+                  : SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: screens.map((screen) {
+                          final isSelected = selectedIps.contains(screen.ip);
+                          final matchesOrientation = contentOrientation == 'unknown'
+                              ? true
+                              : screen.orientation == contentOrientation;
+
+                          return CheckboxListTile(
+                            value: isSelected,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(screen.name),
+                            subtitle: Text(
+                              '${screen.ip} • ${screen.orientation == 'portrait' ? 'Portrait' : 'Landscape'}${matchesOrientation ? '' : ' • passt nicht'}',
+                            ),
+                            onChanged: (value) {
+                              setDialogState(() {
+                                if (value == true) {
+                                  selectedIps.add(screen.ip);
+                                } else {
+                                  selectedIps.remove(screen.ip);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Abbrechen'),
+              ),
+              ElevatedButton(
+                onPressed: screens.isEmpty || selectedIps.isEmpty
+                    ? null
+                    : () {
+                        final selectedScreens = screens
+                            .where((screen) => selectedIps.contains(screen.ip))
+                            .toList();
+                        Navigator.pop(context, selectedScreens);
+                      },
+                child: const Text('Senden'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> sendContentToMultipleScreens(SavedContent content) async {
+    setState(() {
+      sendingContentId = content.id;
+    });
+
+    try {
+      final screens = await _loadAvailableScreens();
+      final selectedScreens = await _showMultiSendDialog(screens, content);
+
+      if (selectedScreens == null || selectedScreens.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          sendingContentId = null;
+        });
+        return;
+      }
+
+      int successCount = 0;
+      int offlineCount = 0;
+      int failedCount = 0;
+
+      final contentStorage = ContentStorageService();
+      final screenStorage = StorageService();
+
+      for (final screen in selectedScreens) {
+        try {
+          final api = ApiService('http://${screen.ip}:8080');
+          final status = await api.getStatus();
+
+          if (!status.isOnline) {
+            offlineCount++;
+            continue;
+          }
+
+          final payload = _buildPayloadFromSavedContent(content);
+          final int contentVersion = payload['contentVersion'] as int;
+          final result = await api.sendContent(payload);
+
+          if (result.success) {
+            successCount++;
+            await screenStorage.markContentSent(
+              ip: screen.ip,
+              contentVersion: contentVersion,
+              contentName: content.name,
+            );
+          } else {
+            failedCount++;
+          }
+        } catch (_) {
+          failedCount++;
+        }
+      }
+
+      final updated = content.copyWith(
+        lastUsedScreenIp: selectedScreens.length == 1 ? selectedScreens.first.ip : null,
+      );
+      await contentStorage.addOrUpdateContent(updated);
+      await loadContents();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$successCount erfolgreich • $offlineCount offline • $failedCount fehlgeschlagen',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      await _showSendErrorDialog(
+        title: 'Fehler beim Senden',
+        message: 'Es ist ein unerwarteter Fehler aufgetreten:\n$e',
+        onRetry: () => sendContentToMultipleScreens(content),
+      );
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      sendingContentId = null;
+    });
+  }
+
+  String templateLabel(TemplateType type) {
+    switch (type) {
+      case TemplateType.menu:
+        return 'Menü';
+      case TemplateType.drinks:
+        return 'Getränke';
+      case TemplateType.promo:
+        return 'Aktion';
+      case TemplateType.welcome:
+        return 'Willkommen';
+    }
+  }
+
+  String _filterLabel(ContentLibraryFilter filter) {
+    switch (filter) {
+      case ContentLibraryFilter.all:
+        return 'Alle';
+      case ContentLibraryFilter.menu:
+        return 'Menü';
+      case ContentLibraryFilter.drinks:
+        return 'Getränke';
+      case ContentLibraryFilter.promo:
+        return 'Aktion';
+      case ContentLibraryFilter.welcome:
+        return 'Willkommen';
+    }
+  }
+
+  String _orientationFilterLabel(ContentOrientationFilter filter) {
+    switch (filter) {
+      case ContentOrientationFilter.all:
+        return 'Alle';
+      case ContentOrientationFilter.portrait:
+        return 'Portrait';
+      case ContentOrientationFilter.landscape:
+        return 'Landscape';
+    }
+  }
+
+  String _orientationLabelForContent(SavedContent content) {
+    switch (_normalizedContentOrientation(content)) {
+      case 'portrait':
+        return 'Portrait';
+      case 'landscape':
+        return 'Landscape';
+      default:
+        return 'Unbekannt';
+    }
+  }
+
+  Widget _buildSearchAndFilters() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        children: [
+          TextField(
+            controller: searchController,
+            decoration: InputDecoration(
+              hintText: 'Inhalte suchen',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        searchController.clear();
+                      },
+                    ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Format',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ContentOrientationFilter.values.map((filter) {
+                final isSelected = selectedOrientationFilter == filter;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(_orientationFilterLabel(filter)),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        selectedOrientationFilter = filter;
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Typ',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: ContentLibraryFilter.values.map((filter) {
+                final isSelected = selectedFilter == filter;
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(_filterLabel(filter)),
+                    selected: isSelected,
+                    onSelected: (_) {
+                      setState(() {
+                        selectedFilter = filter;
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentTile(SavedContent content) {
+    final isSending = sendingContentId == content.id;
+    final primaryType = _primaryTypeOf(content);
+    final orientationLabel = _orientationLabelForContent(content);
+
+    return ListTile(
+      title: Text(content.name),
+      subtitle: Text(
+        '${templateLabel(primaryType)}'
+        ' • ${content.slides.length} Slide(s)'
+        ' • $orientationLabel'
+        '${content.lastUsedScreenIp != null ? " • zuletzt: ${content.lastUsedScreenIp}" : ""}',
+      ),
+      onTap: () => openContent(content),
+      onLongPress: () => showOptions(content),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isSending)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.send),
+              onPressed: () => sendContentToMultipleScreens(content),
+              tooltip: 'An mehrere Screens senden',
+            ),
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () => showOptions(content),
+          ),
+        ],
+      ),
+    );
   }
 
   void showOptions(SavedContent content) {
@@ -469,119 +726,6 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  String templateLabel(TemplateType type) {
-    switch (type) {
-      case TemplateType.menu:
-        return 'Menü';
-      case TemplateType.promo:
-        return 'Aktion';
-      case TemplateType.welcome:
-        return 'Willkommen';
-    }
-  }
-
-  String _filterLabel(ContentLibraryFilter filter) {
-    switch (filter) {
-      case ContentLibraryFilter.all:
-        return 'Alle';
-      case ContentLibraryFilter.menu:
-        return 'Menü';
-      case ContentLibraryFilter.promo:
-        return 'Aktion';
-      case ContentLibraryFilter.welcome:
-        return 'Willkommen';
-    }
-  }
-
-  Widget _buildSearchAndFilters() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        children: [
-          TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: 'Inhalte suchen',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: searchController.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        searchController.clear();
-                      },
-                    ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ContentLibraryFilter.values.map((filter) {
-                final isSelected = selectedFilter == filter;
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(_filterLabel(filter)),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(() {
-                        selectedFilter = filter;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContentTile(SavedContent content) {
-    final isSending = sendingContentId == content.id;
-    final primaryType = _primaryTypeOf(content);
-    final orientationLabel =
-        widget.screenOrientation == 'portrait' ? 'Portrait' : 'Landscape';
-
-    return ListTile(
-      title: Text(content.name),
-      subtitle: Text(
-        '${templateLabel(primaryType)}'
-        ' • ${content.slides.length} Slide(s)'
-        ' • $orientationLabel'
-        '${content.lastUsedScreenIp != null ? " • zuletzt: ${content.lastUsedScreenIp}" : ""}',
-      ),
-      onTap: () => openContent(content),
-      onLongPress: () => showOptions(content),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isSending)
-            const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.send),
-              onPressed: () => sendContentToScreen(content),
-            ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () => showOptions(content),
-          ),
-        ],
       ),
     );
   }

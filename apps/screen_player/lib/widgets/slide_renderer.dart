@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
+import '../widgets/headline_board_widget.dart';
+import '../widgets/menu_board_widget.dart';
+
 class SlideRenderer extends StatelessWidget {
   final SlideModel slide;
 
@@ -9,274 +12,212 @@ class SlideRenderer extends StatelessWidget {
     required this.slide,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    switch (slide.templateId) {
-      case 'daily_specials':
-        return _DailySpecialsSlide(slide: slide);
-      case 'promo':
-        return _PromoSlide(slide: slide);
-      case 'welcome':
-        return _WelcomeSlide(slide: slide);
+  Color _parseBoardColor(String value) {
+    final normalized = value.trim().toLowerCase();
+
+    if (normalized == 'green') {
+      return const Color(0xFF1B5E20);
+    }
+
+    if (normalized.startsWith('#')) {
+      final hex = normalized.replaceFirst('#', '');
+      final buffer = StringBuffer();
+      if (hex.length == 6) {
+        buffer.write('ff');
+      }
+      buffer.write(hex);
+      try {
+        return Color(int.parse(buffer.toString(), radix: 16));
+      } catch (_) {}
+    }
+
+    return const Color(0xFF111111);
+  }
+
+  String _fontMode() {
+    return 'chalk';
+  }
+
+  TextStyle _titleStyle(double baseFontSize) {
+    switch (_fontMode()) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
+          fontSize: baseFontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+        );
       default:
-        return _FallbackSlide(slide: slide);
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans', 'Arial'],
+          fontSize: baseFontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        );
     }
   }
-}
 
-class _DailySpecialsSlide extends StatelessWidget {
-  final SlideModel slide;
-
-  const _DailySpecialsSlide({required this.slide});
-
-  Color _parseColor(String hexColor) {
-    final buffer = StringBuffer();
-    if (hexColor.length == 7) {
-      buffer.write('ff');
-      buffer.write(hexColor.replaceFirst('#', ''));
-    } else {
-      buffer.write(hexColor.replaceFirst('#', ''));
+  TextStyle _bodyStyle(double baseFontSize) {
+    switch (_fontMode()) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
+          fontSize: baseFontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.12,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans', 'Arial'],
+          fontSize: baseFontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.18,
+          fontWeight: FontWeight.w500,
+        );
     }
-    return Color(int.parse(buffer.toString(), radix: 16));
   }
 
-  @override
-  Widget build(BuildContext context) {
+  TextStyle _priceStyle(double baseFontSize) {
+    switch (_fontMode()) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
+          fontSize: baseFontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans', 'Arial'],
+          fontSize: baseFontSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        );
+    }
+  }
+
+  bool _isPortrait(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return size.height >= size.width;
+  }
+
+  List<Map<String, dynamic>> _normalizedItems() {
+    return slide.items.map((item) {
+      bool soldOut = false;
+      try {
+        final dynamic dynamicItem = item;
+        final dynamic value = dynamicItem.soldOut;
+        if (value is bool) {
+          soldOut = value;
+        }
+      } catch (_) {}
+
+      return {
+        'name': item.name,
+        'price': item.price,
+        'soldOut': soldOut,
+      };
+    }).toList();
+  }
+
+  Widget _buildMenuLike(BuildContext context) {
+    final isPortrait = _isPortrait(context);
+
     return Container(
-      color: _parseColor(slide.backgroundValue),
+      color: _parseBoardColor(slide.backgroundValue),
       width: double.infinity,
       height: double.infinity,
-      padding: const EdgeInsets.all(48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            slide.title,
-            style: const TextStyle(
-              fontFamily: 'ConteScript',
-              color: Color(0xFFF2E9DC),
-              fontSize: 46,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isPortrait ? 80 : 120,
+          vertical: isPortrait ? 60 : 70,
+        ),
+        child: Center(
+          child: FractionallySizedBox(
+            widthFactor: 0.92,
+            child: MenuBoardWidget(
+              title: slide.title,
+              subtitle: slide.subtitle,
+              footer: slide.footer,
+              items: _normalizedItems(),
+              isPortrait: isPortrait,
+              pageLabel: null,
+              titleStyleBuilder: _titleStyle,
+              bodyStyleBuilder: _bodyStyle,
+              priceStyleBuilder: _priceStyle,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            slide.subtitle,
-            style: const TextStyle(
-              fontFamily: 'ConteScript',
-              color: Color(0xFFF2E9DC),
-              fontSize: 28,
-            ),
-          ),
-          const SizedBox(height: 40),
-          Expanded(
-            child: slide.items.isEmpty
-                ? const SizedBox()
-                : ListView.builder(
-                    itemCount: slide.items.length,
-                    itemBuilder: (context, index) {
-                      final item = slide.items[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                item.name,
-                                style: const TextStyle(
-                                  fontFamily: 'ConteScript',
-                                  color: Color(0xFFF2E9DC),
-                                  fontSize: 34,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              item.price,
-                              style: const TextStyle(
-                                fontFamily: 'ConteScript',
-                                color: Color(0xFFF2E9DC),
-                                fontSize: 34,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            slide.footer,
-            style: const TextStyle(
-              fontFamily: 'ConteScript',
-              color: Color(0xFFF2E9DC),
-              fontSize: 20,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
-}
 
-class _PromoSlide extends StatelessWidget {
-  final SlideModel slide;
-
-  const _PromoSlide({required this.slide});
-
-  Color _parseColor(String hexColor) {
-    final buffer = StringBuffer();
-    if (hexColor.length == 7) {
-      buffer.write('ff');
-      buffer.write(hexColor.replaceFirst('#', ''));
-    } else {
-      buffer.write(hexColor.replaceFirst('#', ''));
-    }
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildPromo(BuildContext context) {
+    final isPortrait = _isPortrait(context);
     final firstItem = slide.items.isNotEmpty ? slide.items.first : null;
 
     return Container(
-      color: _parseColor(slide.backgroundValue),
+      color: _parseBoardColor(slide.backgroundValue),
       width: double.infinity,
       height: double.infinity,
-      padding: const EdgeInsets.all(60),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              slide.title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'ConteScript',
-                color: Color(0xFFF2E9DC),
-                fontSize: 64,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              slide.subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'ConteScript',
-                color: Color(0xFFF2E9DC),
-                fontSize: 36,
-              ),
-            ),
-            const SizedBox(height: 50),
-            if (firstItem != null) ...[
-              Text(
-                firstItem.name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'ConteScript',
-                  color: Color(0xFFF2E9DC),
-                  fontSize: 42,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                firstItem.price,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'ConteScript',
-                  color: Color(0xFFF2E9DC),
-                  fontSize: 54,
-                ),
-              ),
-            ],
-            const SizedBox(height: 40),
-            Text(
-              slide.footer,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontFamily: 'ConteScript',
-                color: Color(0xFFF2E9DC),
-                fontSize: 24,
-              ),
-            ),
-          ],
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isPortrait ? 80 : 120,
+          vertical: isPortrait ? 60 : 70,
+        ),
+        child: HeadlineBoardWidget(
+          title: slide.title,
+          subtitle: slide.subtitle,
+          footer: slide.footer,
+          highlightTitle: firstItem?.name ?? '',
+          highlightPrice: firstItem?.price ?? '',
+          isPortrait: isPortrait,
+          isWelcome: false,
+          titleStyleBuilder: _titleStyle,
+          bodyStyleBuilder: _bodyStyle,
+          priceStyleBuilder: _priceStyle,
         ),
       ),
     );
   }
-}
 
-class _WelcomeSlide extends StatelessWidget {
-  final SlideModel slide;
+  Widget _buildWelcome(BuildContext context) {
+    final isPortrait = _isPortrait(context);
 
-  const _WelcomeSlide({required this.slide});
-
-  Color _parseColor(String hexColor) {
-    final buffer = StringBuffer();
-    if (hexColor.length == 7) {
-      buffer.write('ff');
-      buffer.write(hexColor.replaceFirst('#', ''));
-    } else {
-      buffer.write(hexColor.replaceFirst('#', ''));
-    }
-    return Color(int.parse(buffer.toString(), radix: 16));
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      color: _parseColor(slide.backgroundValue),
+      color: _parseBoardColor(slide.backgroundValue),
       width: double.infinity,
       height: double.infinity,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                slide.title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'ConteScript',
-                  color: Color(0xFFF2E9DC),
-                  fontSize: 72,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                slide.subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'ConteScript',
-                  color: Color(0xFFF2E9DC),
-                  fontSize: 34,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Text(
-                slide.footer,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontFamily: 'ConteScript',
-                  color: Color(0xFFF2E9DC),
-                  fontSize: 24,
-                ),
-              ),
-            ],
-          ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: isPortrait ? 80 : 120,
+          vertical: isPortrait ? 60 : 70,
+        ),
+        child: HeadlineBoardWidget(
+          title: slide.title,
+          subtitle: slide.subtitle,
+          footer: slide.footer,
+          highlightTitle: '',
+          highlightPrice: '',
+          isPortrait: isPortrait,
+          isWelcome: true,
+          titleStyleBuilder: _titleStyle,
+          bodyStyleBuilder: _bodyStyle,
+          priceStyleBuilder: _priceStyle,
         ),
       ),
     );
   }
-}
 
-class _FallbackSlide extends StatelessWidget {
-  final SlideModel slide;
-
-  const _FallbackSlide({required this.slide});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildFallback(BuildContext context) {
     return Container(
       color: Colors.red.shade900,
       width: double.infinity,
@@ -293,5 +234,21 @@ class _FallbackSlide extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (slide.templateId) {
+      case 'daily_specials':
+      case 'menu':
+      case 'drinks':
+        return _buildMenuLike(context);
+      case 'promo':
+        return _buildPromo(context);
+      case 'welcome':
+        return _buildWelcome(context);
+      default:
+        return _buildFallback(context);
+    }
   }
 }

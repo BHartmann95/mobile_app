@@ -733,7 +733,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
 
     for (final slide in normalizedSlides) {
       final templateType = slide['templateType']?.toString() ?? 'menu';
-      if (templateType != 'menu') {
+      if (templateType != 'menu' && templateType != 'drinks') {
         expandedSlides.add(slide);
         continue;
       }
@@ -1348,6 +1348,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         return _buildPromoSlide(slide);
       case 'welcome':
         return _buildWelcomeSlide(slide);
+      case 'drinks':
       case 'menu':
       default:
         return _buildMenuSlide(slide);
@@ -1369,20 +1370,17 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     final chunkTotal = (slide['menuChunkTotal'] as num?)?.toInt() ?? 1;
 
     return Center(
-      child: FractionallySizedBox(
-        widthFactor: 0.92,
-        child: MenuBoardWidget(
-          title: slide['title']?.toString() ?? '',
-          subtitle: slide['subtitle']?.toString() ?? '',
-          footer: slide['footer']?.toString() ?? '',
-          items: items,
-          isPortrait: false,
-          pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
-          titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
-          bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-          priceStyleBuilder: (base) =>
-              _getPriceStyle(fontSize: base, slide: slide),
-        ),
+      child: MenuBoardWidget(
+        title: slide['title']?.toString() ?? '',
+        subtitle: slide['subtitle']?.toString() ?? '',
+        footer: slide['footer']?.toString() ?? '',
+        items: items,
+        isPortrait: false,
+        pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
+        titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
+        bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
+        priceStyleBuilder: (base) =>
+            _getPriceStyle(fontSize: base, slide: slide),
       ),
     );
   }
@@ -1396,20 +1394,17 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     final chunkTotal = (slide['menuChunkTotal'] as num?)?.toInt() ?? 1;
 
     return Center(
-      child: FractionallySizedBox(
-        widthFactor: 0.92,
-        child: MenuBoardWidget(
-          title: slide['title']?.toString() ?? '',
-          subtitle: slide['subtitle']?.toString() ?? '',
-          footer: slide['footer']?.toString() ?? '',
-          items: items,
-          isPortrait: true,
-          pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
-          titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
-          bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
-          priceStyleBuilder: (base) =>
-              _getPriceStyle(fontSize: base, slide: slide),
-        ),
+      child: MenuBoardWidget(
+        title: slide['title']?.toString() ?? '',
+        subtitle: slide['subtitle']?.toString() ?? '',
+        footer: slide['footer']?.toString() ?? '',
+        items: items,
+        isPortrait: true,
+        pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
+        titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
+        bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
+        priceStyleBuilder: (base) =>
+            _getPriceStyle(fontSize: base, slide: slide),
       ),
     );
   }

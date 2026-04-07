@@ -305,7 +305,6 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     statusRefreshTimer = null;
   }
 
-
   Future<void> _openContentLibraryQuickAccess() async {
     if (screens.isEmpty) {
       if (!mounted) return;
@@ -319,58 +318,19 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       return;
     }
 
-    if (screens.length == 1) {
-      final screen = screens.first;
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ContentLibraryScreen(
-            ip: screen.ip,
-            screenName: screen.name,
-            screenOrientation: screen.orientation,
-          ),
-        ),
-      );
-      await loadScreens();
-      return;
-    }
-
-    final selectedScreen = await showModalBottomSheet<ScreenDevice>(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ListTile(
-              title: Text('Mediathek für welchen Screen öffnen?'),
-            ),
-            ...screens.map(
-              (screen) => ListTile(
-                leading: const Icon(Icons.tv),
-                title: Text(screen.name),
-                subtitle: Text(
-                  '${screen.ip} · ${screen.orientation == 'portrait' ? 'Portrait' : 'Landscape'}',
-                ),
-                onTap: () => Navigator.pop(context, screen),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (!mounted || selectedScreen == null) return;
+    final defaultScreen = screens.first;
 
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ContentLibraryScreen(
-          ip: selectedScreen.ip,
-          screenName: selectedScreen.name,
-          screenOrientation: selectedScreen.orientation,
+          ip: defaultScreen.ip,
+          screenName: defaultScreen.name,
+          screenOrientation: defaultScreen.orientation,
         ),
       ),
     );
+
     await loadScreens();
   }
 
@@ -663,12 +623,12 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');
 
-    return 'Zuletzt geöffnet: $day.$month.$year $hour:$minute';
+    return '$day.$month.$year $hour:$minute';
   }
 
   String _lastSentLabel(DateTime? dateTime) {
     if (dateTime == null) {
-      return 'Noch nie gesendet';
+      return 'Noch nie';
     }
 
     final day = dateTime.day.toString().padLeft(2, '0');
@@ -677,102 +637,278 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     final hour = dateTime.hour.toString().padLeft(2, '0');
     final minute = dateTime.minute.toString().padLeft(2, '0');
 
-    return 'Zuletzt gesendet: $day.$month.$year $hour:$minute';
+    return '$day.$month.$year $hour:$minute';
   }
 
   Widget _buildStatusDot(ScreenStatus? status) {
     if (status == null) {
       return const SizedBox(
-        width: 18,
-        height: 18,
+        width: 16,
+        height: 16,
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     }
 
     if (status.isReachable && !status.isPaired) {
-      return const Icon(
-        Icons.circle,
-        size: 16,
-        color: Colors.orange,
-      );
+      return const Icon(Icons.circle, size: 14, color: Colors.orange);
     }
 
     return Icon(
       Icons.circle,
-      size: 16,
+      size: 14,
       color: status.isOnline ? Colors.green : Colors.red,
     );
   }
 
   String _buildStatusText(ScreenStatus? status) {
-    if (status == null) {
-      return 'Status wird geprüft';
-    }
-
-    if (status.isReachable && !status.isPaired) {
-      return 'Entkoppelt / wartet auf Pairing';
-    }
-
-    if (status.isOnline) {
-      return 'Online';
-    }
-
+    if (status == null) return 'Status wird geprüft';
+    if (status.isReachable && !status.isPaired) return 'Nicht gekoppelt';
+    if (status.isOnline) return 'Online';
     return 'Offline';
   }
 
-  String _buildVersionText(ScreenDevice screen, ScreenStatus? status) {
+  String _buildSyncState(ScreenDevice screen, ScreenStatus? status) {
+    if (status == null) return 'Wird geprüft';
+    if (status.isReachable && !status.isPaired) return 'Wartet auf Pairing';
+    if (!status.isReachable) return 'Offline';
+
+    final liveContentName = status.contentName?.trim();
+    final lastContentName = screen.lastContentName?.trim();
+
+    if (liveContentName != null &&
+        liveContentName.isNotEmpty &&
+        lastContentName != null &&
+        lastContentName.isNotEmpty) {
+      if (liveContentName == lastContentName) {
+        return 'Live korrekt';
+      }
+      return 'Nicht aktuell';
+    }
+
+    if (liveContentName != null && liveContentName.isNotEmpty) {
+      return 'Live aktiv';
+    }
+
+    if (lastContentName != null && lastContentName.isNotEmpty) {
+      return 'Zuletzt gesendet';
+    }
+
+    return 'Kein Inhalt';
+  }
+
+  Color _buildSyncStateColor(ScreenDevice screen, ScreenStatus? status) {
+    if (status == null) return Colors.grey.shade600;
+    if (status.isReachable && !status.isPaired) return Colors.orange.shade700;
+    if (!status.isReachable) return Colors.red.shade700;
+
+    final liveContentName = status.contentName?.trim();
+    final lastContentName = screen.lastContentName?.trim();
+
+    if (liveContentName != null &&
+        liveContentName.isNotEmpty &&
+        lastContentName != null &&
+        lastContentName.isNotEmpty) {
+      if (liveContentName == lastContentName) {
+        return Colors.green.shade700;
+      }
+      return Colors.orange.shade700;
+    }
+
+    if (liveContentName != null && liveContentName.isNotEmpty) {
+      return Colors.green.shade700;
+    }
+
+    if (lastContentName != null && lastContentName.isNotEmpty) {
+      return Colors.blueGrey.shade700;
+    }
+
+    return Colors.grey.shade700;
+  }
+
+  String _buildContentNameText(ScreenDevice screen, ScreenStatus? status) {
     if (status != null && status.isReachable && !status.isPaired) {
-      return 'Kein aktives Pairing am Screen';
+      return 'Kein aktives Pairing';
     }
 
-    final liveVersion = status?.contentVersion;
-    final lastSentVersion = screen.lastContentVersion;
-
-    if (liveVersion != null) {
-      return 'Live-Version: $liveVersion';
+    final liveContentName = status?.contentName?.trim();
+    if (liveContentName != null && liveContentName.isNotEmpty) {
+      return liveContentName;
     }
 
-    if (lastSentVersion != null) {
-      return 'Letzte gesendete Version: $lastSentVersion';
+    final lastContentName = screen.lastContentName?.trim();
+    if (lastContentName != null && lastContentName.isNotEmpty) {
+      return lastContentName;
     }
 
-    return 'Version unbekannt';
+    return 'Kein Inhalt bekannt';
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.blueGrey.shade700),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blueGrey.shade800,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStateBadge(ScreenDevice screen, ScreenStatus? status) {
+    final label = _buildSyncState(screen, status);
+    final color = _buildSyncStateColor(screen, status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 
   Widget _buildScreenCard(ScreenDevice screen, {required bool isRecent}) {
     final status = screenStatuses[screen.ip];
+    final orientationLabel =
+        screen.orientation == 'portrait' ? 'Portrait' : 'Landscape';
+    final contentLabel = _buildContentNameText(screen, status);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        leading: CircleAvatar(
-          child: Icon(
-            isRecent ? Icons.star : Icons.tv,
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(screen.name),
-            ),
-            const SizedBox(width: 8),
-            _buildStatusDot(status),
-          ],
-        ),
-        subtitle: Text(
-          '${screen.ip}\n'
-          '${_buildStatusText(status)}\n'
-          '${screen.orientation == 'portrait' ? 'Portrait' : 'Landscape'}\n'
-          '${_lastSentLabel(screen.lastContentSentAt)}\n'
-          '${_buildVersionText(screen, status)}\n'
-          '${_lastUsedLabel(screen.lastOpenedAt)}',
-        ),
-        isThreeLine: false,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () => openScreen(screen),
-        trailing: IconButton(
-          icon: const Icon(Icons.more_vert),
-          onPressed: () => showOptions(screen),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    child: Icon(isRecent ? Icons.star : Icons.tv),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          screen.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          screen.ip,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatusDot(status),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert),
+                    onPressed: () => showOptions(screen),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _buildInfoChip(
+                    icon: status?.isOnline == true
+                        ? Icons.wifi
+                        : Icons.wifi_off,
+                    label: _buildStatusText(status),
+                  ),
+                  _buildInfoChip(
+                    icon: orientationLabel == 'Portrait'
+                        ? Icons.stay_current_portrait
+                        : Icons.stay_current_landscape,
+                    label: orientationLabel,
+                  ),
+                  _buildStateBadge(screen, status),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Inhalt',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                contentLabel,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Gesendet: ${_lastSentLabel(screen.lastContentSentAt)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Geöffnet: ${_lastUsedLabel(screen.lastOpenedAt)}',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

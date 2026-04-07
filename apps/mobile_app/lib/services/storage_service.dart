@@ -60,6 +60,10 @@ class StorageService {
             screen.lastContentSentAt ?? existing.lastContentSentAt,
         lastContentVersion:
             screen.lastContentVersion ?? existing.lastContentVersion,
+        lastContentName: (screen.lastContentName != null &&
+                screen.lastContentName!.trim().isNotEmpty)
+            ? screen.lastContentName
+            : existing.lastContentName,
       );
     } else {
       screens.add(screen);
@@ -114,6 +118,7 @@ class StorageService {
   Future<void> markContentSent({
     required String ip,
     required int contentVersion,
+    String? contentName,
   }) async {
     final screens = await loadScreens();
     final now = DateTime.now();
@@ -123,6 +128,7 @@ class StorageService {
         return screen.copyWith(
           lastContentSentAt: now,
           lastContentVersion: contentVersion,
+          lastContentName: contentName,
         );
       }
       return screen;

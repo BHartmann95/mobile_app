@@ -8,12 +8,16 @@ class ScreenStatus {
   final bool isPaired;
   final bool isReachable;
   final int? contentVersion;
+  final String? contentName;
+  final int? slidesCount;
 
   const ScreenStatus({
     required this.isOnline,
     required this.isPaired,
     required this.isReachable,
     this.contentVersion,
+    this.contentName,
+    this.slidesCount,
   });
 }
 
@@ -24,6 +28,7 @@ class PairingInfoResult {
   final String? orientation;
   final String? ip;
   final bool? paired;
+  final String? contentName;
 
   const PairingInfoResult({
     required this.success,
@@ -32,6 +37,7 @@ class PairingInfoResult {
     this.orientation,
     this.ip,
     this.paired,
+    this.contentName,
   });
 }
 
@@ -51,6 +57,8 @@ class ScreenContentResult {
   final Map<String, dynamic>? rawContent;
   final SavedContent? savedContent;
   final int? contentVersion;
+  final String? contentName;
+  final int? slidesCount;
   final String? screenName;
   final String? orientation;
 
@@ -60,6 +68,8 @@ class ScreenContentResult {
     this.rawContent,
     this.savedContent,
     this.contentVersion,
+    this.contentName,
+    this.slidesCount,
     this.screenName,
     this.orientation,
   });
@@ -121,6 +131,7 @@ class ApiService {
         orientation: decoded['orientation']?.toString(),
         ip: decoded['ip']?.toString(),
         paired: decoded['paired'] as bool?,
+        contentName: decoded['contentName']?.toString(),
       );
     } catch (_) {
       return const PairingInfoResult(success: false);
@@ -360,6 +371,8 @@ class ApiService {
         isPaired: isPaired,
         isReachable: success,
         contentVersion: decoded['contentVersion'] as int?,
+        contentName: decoded['contentName']?.toString(),
+        slidesCount: _parseInt(decoded['slidesCount']),
       );
     } catch (_) {
       return const ScreenStatus(
@@ -439,6 +452,7 @@ class ApiService {
       slides: normalizedSlides,
       boardStyle: _normalizeBoardStyle(payload['boardStyle']?.toString()),
       fontStyle: _normalizeFontStyle(payload['fontStyle']?.toString()),
+      orientation: orientation,
     );
   }
 

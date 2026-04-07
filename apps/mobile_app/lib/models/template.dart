@@ -1,5 +1,6 @@
 enum TemplateType {
   menu,
+  drinks,
   promo,
   welcome,
 }
@@ -43,6 +44,8 @@ class Template {
     switch (value) {
       case 'menu':
         return TemplateType.menu;
+      case 'drinks':
+        return TemplateType.drinks;
       case 'promo':
         return TemplateType.promo;
       case 'welcome':

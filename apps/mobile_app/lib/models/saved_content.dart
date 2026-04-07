@@ -126,6 +126,8 @@ class SavedSlide {
 
   static TemplateType _templateTypeFromString(String value) {
     switch (value) {
+      case 'drinks':
+        return TemplateType.drinks;
       case 'promo':
         return TemplateType.promo;
       case 'welcome':
@@ -145,6 +147,7 @@ class SavedContent {
   final List<SavedSlide> slides;
   final String boardStyle;
   final String fontStyle;
+  final String orientation;
 
   const SavedContent({
     required this.id,
@@ -154,6 +157,7 @@ class SavedContent {
     required this.slides,
     this.boardStyle = 'black',
     this.fontStyle = 'chalk',
+    this.orientation = 'unknown',
   });
 
   Map<String, dynamic> toJson() {
@@ -165,6 +169,7 @@ class SavedContent {
       'slides': slides.map((e) => e.toJson()).toList(),
       'boardStyle': boardStyle,
       'fontStyle': fontStyle,
+      'orientation': orientation,
     };
   }
 
@@ -181,6 +186,7 @@ class SavedContent {
       slides: rawSlides,
       boardStyle: (json['boardStyle'] ?? 'black').toString(),
       fontStyle: _normalizeFontStyle(json['fontStyle']?.toString()),
+      orientation: _normalizeOrientation(json['orientation']?.toString()),
     );
   }
 
@@ -204,6 +210,14 @@ class SavedContent {
     }
   }
 
+
+  static String _normalizeOrientation(String? value) {
+    final normalized = (value ?? '').trim().toLowerCase();
+    if (normalized == 'portrait') return 'portrait';
+    if (normalized == 'landscape') return 'landscape';
+    return 'unknown';
+  }
+
   SavedContent copyWith({
     String? id,
     String? name,
@@ -212,6 +226,7 @@ class SavedContent {
     List<SavedSlide>? slides,
     String? boardStyle,
     String? fontStyle,
+    String? orientation,
   }) {
     return SavedContent(
       id: id ?? this.id,
@@ -221,6 +236,7 @@ class SavedContent {
       slides: slides ?? this.slides,
       boardStyle: boardStyle ?? this.boardStyle,
       fontStyle: fontStyle ?? this.fontStyle,
+      orientation: orientation ?? this.orientation,
     );
   }
 

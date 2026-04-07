@@ -179,6 +179,36 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ValueNotifier<bool>(false),
             ValueNotifier<bool>(false),
           ],
+          textScale: 1.0,
+        );
+        _attachSlideListeners(slide);
+        return slide;
+
+      case TemplateType.drinks:
+        final slide = _EditableSlide(
+          templateType: TemplateType.drinks,
+          titleController: TextEditingController(text: 'Getränke'),
+          subtitleController: TextEditingController(text: 'Kalt & Heiß'),
+          footerController: TextEditingController(text: ''),
+          highlightTitleController: TextEditingController(),
+          highlightPriceController: TextEditingController(),
+          durationController: TextEditingController(text: '10'),
+          itemNameControllers: [
+            TextEditingController(text: 'Cola 0,33'),
+            TextEditingController(text: 'Bier 0,5'),
+            TextEditingController(text: 'Espresso'),
+          ],
+          itemPriceControllers: [
+            TextEditingController(text: '3,50'),
+            TextEditingController(text: '4,20'),
+            TextEditingController(text: '2,50'),
+          ],
+          itemSoldOutControllers: [
+            ValueNotifier<bool>(false),
+            ValueNotifier<bool>(false),
+            ValueNotifier<bool>(false),
+          ],
+          textScale: 1.0,
         );
         _attachSlideListeners(slide);
         return slide;
@@ -239,7 +269,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       textScale: slideData.textScale,
     );
 
-    if (slide.templateType == TemplateType.menu &&
+    if ((slide.templateType == TemplateType.menu ||
+            slide.templateType == TemplateType.drinks) &&
         slide.itemNameControllers.isEmpty) {
       slide.itemNameControllers.add(TextEditingController());
       slide.itemPriceControllers.add(TextEditingController());
@@ -291,6 +322,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (type) {
       case TemplateType.menu:
         return 'Menü';
+      case TemplateType.drinks:
+        return 'Getränke';
       case TemplateType.promo:
         return 'Aktion';
       case TemplateType.welcome:
@@ -302,6 +335,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (type) {
       case TemplateType.menu:
         return Icons.restaurant_menu;
+      case TemplateType.drinks:
+        return Icons.local_bar;
       case TemplateType.promo:
         return Icons.local_offer;
       case TemplateType.welcome:
@@ -313,6 +348,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (type) {
       case TemplateType.menu:
         return Colors.orange;
+      case TemplateType.drinks:
+        return Colors.cyan;
       case TemplateType.promo:
         return Colors.blue;
       case TemplateType.welcome:
@@ -332,6 +369,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               leading: const Icon(Icons.restaurant_menu),
               title: const Text('Menü'),
               onTap: () => Navigator.pop(context, TemplateType.menu),
+            ),
+            ListTile(
+              leading: const Icon(Icons.local_bar),
+              title: const Text('Getränke'),
+              onTap: () => Navigator.pop(context, TemplateType.drinks),
             ),
             ListTile(
               leading: const Icon(Icons.local_offer),
@@ -373,7 +415,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   void addMenuItem() {
-    if (currentSlide.templateType != TemplateType.menu) return;
+    if (currentSlide.templateType != TemplateType.menu &&
+        currentSlide.templateType != TemplateType.drinks) return;
 
     final nameController = TextEditingController();
     final priceController = TextEditingController();
@@ -391,7 +434,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   void removeMenuItem(int index) {
-    if (currentSlide.templateType != TemplateType.menu) return;
+    if (currentSlide.templateType != TemplateType.menu &&
+        currentSlide.templateType != TemplateType.drinks) return;
     if (currentSlide.itemNameControllers.length <= 1) return;
 
     setState(() {
@@ -604,6 +648,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         await screenStorage.markContentSent(
           ip: widget.ip,
           contentVersion: contentVersion,
+          contentName: content.name,
         );
 
         if (!mounted) return;
@@ -644,6 +689,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     return {
       'contentVersion': contentVersion,
+      'contentName': libraryNameController.text.trim().isEmpty
+          ? 'Neuer Inhalt'
+          : libraryNameController.text.trim(),
       'orientation': widget.screenOrientation,
       'boardStyle': boardStyle,
       'fontStyle': fontStyle,
@@ -952,6 +1000,87 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
+  Widget _buildDrinksFields() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text(
+          'Getränke',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(currentSlide.itemNameControllers.length, (index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: currentSlide.itemNameControllers[index],
+                    decoration: InputDecoration(
+                      labelText: 'Name ${index + 1}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: currentSlide.itemPriceControllers[index],
+                    decoration: InputDecoration(
+                      labelText: 'Preis ${index + 1}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ValueListenableBuilder<bool>(
+                  valueListenable: currentSlide.itemSoldOutControllers[index],
+                  builder: (context, soldOut, _) {
+                    return Column(
+                      children: [
+                        Checkbox(
+                          value: soldOut,
+                          onChanged: (value) {
+                            currentSlide.itemSoldOutControllers[index].value =
+                                value ?? false;
+                          },
+                        ),
+                        const Text(
+                          'Ausverkauft',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                IconButton(
+                  onPressed: currentSlide.itemNameControllers.length > 1
+                      ? () => removeMenuItem(index)
+                      : null,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+          );
+        }),
+        TextButton.icon(
+          onPressed: addMenuItem,
+          icon: const Icon(Icons.add),
+          label: const Text('Eintrag hinzufügen'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _isPortraitPreview()
+              ? 'Im Portrait werden maximal 10 Einträge pro Getränke-Slide angezeigt. Weitere Einträge werden automatisch auf zusätzliche Slides verteilt.'
+              : 'Im Landscape werden maximal 6 Einträge pro Getränke-Slide angezeigt. Weitere Einträge werden automatisch auf zusätzliche Slides verteilt.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
   Widget _buildPromoFields() {
     return Column(
       children: [
@@ -985,6 +1114,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (currentSlide.templateType) {
       case TemplateType.menu:
         return _buildMenuFields();
+      case TemplateType.drinks:
+        return _buildDrinksFields();
       case TemplateType.promo:
         return _buildPromoFields();
       case TemplateType.welcome:
@@ -1116,7 +1247,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   int _menuPreviewPageCount() {
-    if (currentSlide.templateType != TemplateType.menu) return 1;
+    if (currentSlide.templateType != TemplateType.menu &&
+        currentSlide.templateType != TemplateType.drinks) return 1;
     final items = _visiblePreviewMenuItems();
     final maxItems = _maxMenuItemsPerSlide();
     if (items.isEmpty) return 1;
@@ -1165,6 +1297,204 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'price': _displayPrice(currentSlide.itemPriceControllers[index].text),
       };
     }).where((e) => e['name']!.isNotEmpty || e['price']!.isNotEmpty).toList();
+  }
+
+
+  double _previewTextScale(Map<String, dynamic> slide) {
+    final rawValue = slide['textScale'];
+
+    double resolved = 1.0;
+    if (rawValue is num) {
+      resolved = rawValue.toDouble();
+    } else if (rawValue is String) {
+      resolved = double.tryParse(rawValue) ?? 1.0;
+    }
+
+    if (resolved.isNaN || resolved.isInfinite) {
+      return 1.0;
+    }
+
+    return resolved.clamp(0.8, 1.25).toDouble();
+  }
+
+  TextStyle _previewTitleStyleForSlide(
+    Map<String, dynamic> slide, {
+    required double fontSize,
+  }) {
+    final resolvedSize = fontSize * _previewTextScale(slide);
+    switch (_getPreviewFontMode()) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
+          fontSize: resolvedSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans', 'Arial'],
+          fontSize: resolvedSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        );
+    }
+  }
+
+  TextStyle _previewBodyStyleForSlide(
+    Map<String, dynamic> slide, {
+    required double fontSize,
+  }) {
+    final resolvedSize = fontSize * _previewTextScale(slide);
+    switch (_getPreviewFontMode()) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
+          fontSize: resolvedSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.12,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans', 'Arial'],
+          fontSize: resolvedSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.18,
+          fontWeight: FontWeight.w500,
+        );
+    }
+  }
+
+  TextStyle _previewPriceStyleForSlide(
+    Map<String, dynamic> slide, {
+    required double fontSize,
+  }) {
+    final resolvedSize = fontSize * _previewTextScale(slide);
+    switch (_getPreviewFontMode()) {
+      case 'chalk':
+        return TextStyle(
+          fontFamily: 'Gobsmacked',
+          fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
+          fontSize: resolvedSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+        );
+      default:
+        return TextStyle(
+          fontFamily: 'Roboto',
+          fontFamilyFallback: const ['Noto Sans', 'Arial'],
+          fontSize: resolvedSize,
+          color: const Color(0xFFF2E9DC),
+          height: 1.0,
+          fontWeight: FontWeight.w700,
+        );
+    }
+  }
+
+  List<List<T>> _chunkPreviewList<T>(List<T> items, int size) {
+    if (items.isEmpty) return const [];
+    final chunks = <List<T>>[];
+    for (var i = 0; i < items.length; i += size) {
+      final end = (i + size < items.length) ? i + size : items.length;
+      chunks.add(items.sublist(i, end));
+    }
+    return chunks;
+  }
+
+  List<Map<String, dynamic>> _expandedPreviewSlides() {
+    final payload = _buildPayload();
+    final rawSlides = (payload['slides'] as List?) ?? [];
+    final normalizedSlides = rawSlides
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final expandedSlides = <Map<String, dynamic>>[];
+    final maxItems = _maxMenuItemsPerSlide();
+
+    for (final slide in normalizedSlides) {
+      final templateType = slide['templateType']?.toString() ?? 'menu';
+      if (templateType != 'menu' && templateType != 'drinks') {
+        expandedSlides.add(slide);
+        continue;
+      }
+
+      final rawItems = (slide['items'] as List?)
+              ?.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .where((e) =>
+                  (e['name']?.toString().trim().isNotEmpty ?? false) ||
+                  (e['price']?.toString().trim().isNotEmpty ?? false))
+              .toList() ??
+          <Map<String, dynamic>>[];
+
+      if (rawItems.isEmpty) {
+        expandedSlides.add({...slide, 'items': <Map<String, dynamic>>[]});
+        continue;
+      }
+
+      final chunks = _chunkPreviewList(rawItems, maxItems);
+      for (var i = 0; i < chunks.length; i++) {
+        final cloned = Map<String, dynamic>.from(slide);
+        cloned['items'] = chunks[i];
+        cloned['menuChunkIndex'] = i + 1;
+        cloned['menuChunkTotal'] = chunks.length;
+        expandedSlides.add(cloned);
+      }
+    }
+
+    return expandedSlides;
+  }
+
+  Map<String, dynamic> _currentPreviewSlide() {
+    final expandedSlides = _expandedPreviewSlides();
+    if (expandedSlides.isEmpty) {
+      return {
+        'templateType': currentSlide.templateType.name,
+        'title': currentSlide.titleController.text.trim(),
+        'subtitle': currentSlide.subtitleController.text.trim(),
+        'footer': currentSlide.footerController.text.trim(),
+        'highlightTitle': currentSlide.highlightTitleController.text.trim(),
+        'highlightPrice': currentSlide.highlightPriceController.text.trim(),
+        'items': const <Map<String, dynamic>>[],
+        'textScale': currentSlide.textScale,
+      };
+    }
+
+    var previewIndex = 0;
+    for (var i = 0; i < selectedSlideIndex && i < slides.length; i++) {
+      final type = slides[i].templateType;
+      if (type == TemplateType.menu || type == TemplateType.drinks) {
+        final itemCount = List.generate(slides[i].itemNameControllers.length, (index) {
+          final name = slides[i].itemNameControllers[index].text.trim();
+          final price = _displayPrice(slides[i].itemPriceControllers[index].text);
+          return {'name': name, 'price': price};
+        }).where((e) => (e['name'] ?? '').toString().isNotEmpty || (e['price'] ?? '').toString().isNotEmpty).length;
+
+        final pages = itemCount == 0 ? 1 : (itemCount / _maxMenuItemsPerSlide()).ceil();
+        previewIndex += pages;
+      } else {
+        previewIndex += 1;
+      }
+    }
+
+    if (previewIndex >= expandedSlides.length) {
+      previewIndex = expandedSlides.length - 1;
+    }
+
+    return expandedSlides[previewIndex];
+  }
+
+  int _currentPreviewPageCountForSelectedSlide() {
+    final type = currentSlide.templateType;
+    if (type != TemplateType.menu && type != TemplateType.drinks) return 1;
+    final itemCount = _currentMenuItems().length;
+    if (itemCount == 0) return 1;
+    return (itemCount / _maxMenuItemsPerSlide()).ceil();
   }
 
   Widget _buildPreviewCard() {
@@ -1230,8 +1560,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                             child: Opacity(
                               opacity: 0.35,
                               child: Text(
-                                currentSlide.templateType == TemplateType.menu && _menuPreviewPageCount() > 1
-                                    ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_menuPreviewPageCount()} · ${_durationValue(currentSlide)}s'
+                                (currentSlide.templateType == TemplateType.menu || currentSlide.templateType == TemplateType.drinks) && _currentPreviewPageCountForSelectedSlide() > 1
+                                    ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_currentPreviewPageCountForSelectedSlide()} · ${_durationValue(currentSlide)}s'
                                     : 'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
                                 style: TextStyle(
                                   fontSize: 14 * previewScale,
@@ -1254,108 +1584,79 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Widget _buildPreviewSlideContent(double scale) {
-  switch (currentSlide.templateType) {
-    case TemplateType.menu:
-      return _buildMenuPreview(scale);
-    case TemplateType.promo:
-      return _buildPromoPreview(scale);
-    case TemplateType.welcome:
-      return _buildWelcomePreview(scale);
-  }
-}
+    final previewSlide = _currentPreviewSlide();
+    final templateType = previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;
 
-Widget _buildMenuPreview(double scale) {
-  return MenuBoardWidget(
-    title: currentSlide.titleController.text.trim(),
-    subtitle: currentSlide.subtitleController.text.trim(),
-    footer: currentSlide.footerController.text.trim(),
-    items: List.generate(currentSlide.itemNameControllers.length, (index) {
-      return {
-        'name': currentSlide.itemNameControllers[index].text.trim(),
-        'price': _displayPrice(currentSlide.itemPriceControllers[index].text),
-        'soldOut': currentSlide.itemSoldOutControllers[index].value,
-      };
-    }).where((e) {
-      return (e['name'] ?? '').toString().isNotEmpty ||
-          (e['price'] ?? '').toString().isNotEmpty;
-    }).toList(),
-    isPortrait: _isPortraitPreview(),
-    pageLabel: null,
-    titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
-    bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
-    priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
-  );
-}
-
-  Widget _buildPromoPreview(double scale) {
-    return _isPortraitPreview()
-        ? _buildPromoPortraitPreview(scale)
-        : _buildPromoLandscapePreview(scale);
+    switch (templateType) {
+      case 'menu':
+      case 'drinks':
+        return _buildMenuPreviewFromPayload(previewSlide);
+      case 'promo':
+        return _buildPromoPreviewFromPayload(previewSlide);
+      case 'welcome':
+        return _buildWelcomePreviewFromPayload(previewSlide);
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
-  Widget _buildPromoLandscapePreview(double scale) {
-    return HeadlineBoardWidget(
-      title: currentSlide.titleController.text.trim(),
-      subtitle: currentSlide.subtitleController.text.trim(),
-      footer: currentSlide.footerController.text.trim(),
-      highlightTitle: currentSlide.highlightTitleController.text.trim(),
-      highlightPrice: currentSlide.highlightPriceController.text.trim(),
-      isPortrait: false,
-      isWelcome: false,
-      titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
-      bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
+  Widget _buildMenuPreviewFromPayload(Map<String, dynamic> slide) {
+    final items = ((slide['items'] as List?) ?? [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final chunkIndex = (slide['menuChunkIndex'] as num?)?.toInt() ?? 1;
+    final chunkTotal = (slide['menuChunkTotal'] as num?)?.toInt() ?? 1;
+
+    return MenuBoardWidget(
+      title: slide['title']?.toString() ?? '',
+      subtitle: slide['subtitle']?.toString() ?? '',
+      footer: slide['footer']?.toString() ?? '',
+      items: items,
+      isPortrait: _isPortraitPreview(),
+      pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
+      titleStyleBuilder: (base) =>
+          _previewTitleStyleForSlide(slide, fontSize: base),
+      bodyStyleBuilder: (base) =>
+          _previewBodyStyleForSlide(slide, fontSize: base),
+      priceStyleBuilder: (base) =>
+          _previewPriceStyleForSlide(slide, fontSize: base),
     );
   }
 
-  Widget _buildPromoPortraitPreview(double scale) {
+  Widget _buildPromoPreviewFromPayload(Map<String, dynamic> slide) {
     return HeadlineBoardWidget(
-      title: currentSlide.titleController.text.trim(),
-      subtitle: currentSlide.subtitleController.text.trim(),
-      footer: currentSlide.footerController.text.trim(),
-      highlightTitle: currentSlide.highlightTitleController.text.trim(),
-      highlightPrice: currentSlide.highlightPriceController.text.trim(),
-      isPortrait: true,
+      title: slide['title']?.toString() ?? '',
+      subtitle: slide['subtitle']?.toString() ?? '',
+      footer: slide['footer']?.toString() ?? '',
+      highlightTitle: slide['highlightTitle']?.toString() ?? '',
+      highlightPrice: slide['highlightPrice']?.toString() ?? '',
+      isPortrait: _isPortraitPreview(),
       isWelcome: false,
-      titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
-      bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
+      titleStyleBuilder: (base) =>
+          _previewTitleStyleForSlide(slide, fontSize: base),
+      bodyStyleBuilder: (base) =>
+          _previewBodyStyleForSlide(slide, fontSize: base),
+      priceStyleBuilder: (base) =>
+          _previewPriceStyleForSlide(slide, fontSize: base),
     );
   }
 
-  Widget _buildWelcomePreview(double scale) {
-    return _isPortraitPreview()
-        ? _buildWelcomePortraitPreview(scale)
-        : _buildWelcomeLandscapePreview(scale);
-  }
-
-  Widget _buildWelcomeLandscapePreview(double scale) {
+  Widget _buildWelcomePreviewFromPayload(Map<String, dynamic> slide) {
     return HeadlineBoardWidget(
-      title: currentSlide.titleController.text.trim(),
-      subtitle: currentSlide.subtitleController.text.trim(),
-      footer: currentSlide.footerController.text.trim(),
+      title: slide['title']?.toString() ?? '',
+      subtitle: slide['subtitle']?.toString() ?? '',
+      footer: slide['footer']?.toString() ?? '',
       highlightTitle: '',
       highlightPrice: '',
-      isPortrait: false,
+      isPortrait: _isPortraitPreview(),
       isWelcome: true,
-      titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
-      bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
-    );
-  }
-
-  Widget _buildWelcomePortraitPreview(double scale) {
-    return HeadlineBoardWidget(
-      title: currentSlide.titleController.text.trim(),
-      subtitle: currentSlide.subtitleController.text.trim(),
-      footer: currentSlide.footerController.text.trim(),
-      highlightTitle: '',
-      highlightPrice: '',
-      isPortrait: true,
-      isWelcome: true,
-      titleStyleBuilder: (base) => _getTitleStyle(fontSize: base),
-      bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base),
-      priceStyleBuilder: (base) => _getPriceStyle(fontSize: base),
+      titleStyleBuilder: (base) =>
+          _previewTitleStyleForSlide(slide, fontSize: base),
+      bodyStyleBuilder: (base) =>
+          _previewBodyStyleForSlide(slide, fontSize: base),
+      priceStyleBuilder: (base) =>
+          _previewPriceStyleForSlide(slide, fontSize: base),
     );
   }
 

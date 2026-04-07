@@ -42,6 +42,11 @@ class TemplateSelectionScreen extends StatelessWidget {
             onTap: () => openTemplate(context, TemplateType.menu),
           ),
           ListTile(
+            title: const Text('Getränke'),
+            subtitle: const Text('Getränke / Bar Karte'),
+            onTap: () => openTemplate(context, TemplateType.drinks),
+          ),
+          ListTile(
             title: const Text('Aktion'),
             subtitle: const Text('Promo / Angebot'),
             onTap: () => openTemplate(context, TemplateType.promo),
