@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/template.dart';
 import '../models/saved_content.dart';
 import '../services/api_service.dart';
@@ -44,6 +46,8 @@ class _EditableSlide {
   final List<TextEditingController> itemPriceControllers;
   final List<ValueNotifier<bool>> itemSoldOutControllers;
   double textScale;
+  String logoMode;
+  double logoOpacity;
 
   _EditableSlide({
     required this.templateType,
@@ -57,6 +61,8 @@ class _EditableSlide {
     required this.itemPriceControllers,
     required this.itemSoldOutControllers,
     this.textScale = 1.0,
+    this.logoMode = 'none',
+    this.logoOpacity = 0.12,
   });
 
   void dispose() {
@@ -81,8 +87,11 @@ class _EditableSlide {
 
 class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   final libraryNameController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+
   String boardStyle = 'black';
   String fontStyle = 'chalk';
+  String? logoBase64;
 
   final List<_EditableSlide> slides = [];
   int selectedSlideIndex = 0;
@@ -108,6 +117,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
 
     _attachLibraryListener();
+    _recoverLostLogoSelection();
   }
 
   void _attachLibraryListener() {
@@ -151,6 +161,88 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return '$normalized €';
   }
 
+  String _normalizeLogoMode(String? value) {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'center':
+      case 'centerwatermark':
+      case 'watermark':
+        return 'center';
+      case 'topleft':
+      case 'top_left':
+      case 'top-left':
+      case 'stamp':
+        return 'topLeft';
+      case 'none':
+      default:
+        return 'none';
+    }
+  }
+
+  double _normalizeLogoOpacity(Object? value) {
+    final parsed =
+        value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
+    if (parsed == null || parsed.isNaN || parsed.isInfinite) {
+      return 0.12;
+    }
+    final normalized = parsed > 1 ? parsed / 100.0 : parsed;
+    return normalized.clamp(0.05, 0.8).toDouble();
+  }
+
+  Future<void> _pickLogo() async {
+    try {
+      final file = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 100,
+      );
+      if (file == null) return;
+
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+
+      setState(() {
+        logoBase64 = base64Encode(bytes);
+        if (currentSlide.logoMode == 'none') {
+          currentSlide.logoMode = 'center';
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logo konnte nicht geladen werden: $e')),
+      );
+    }
+  }
+
+  Future<void> _recoverLostLogoSelection() async {
+    try {
+      final response = await _imagePicker.retrieveLostData();
+      if (response.isEmpty) return;
+
+      final files = response.files;
+      if (files != null && files.isNotEmpty) {
+        final bytes = await files.first.readAsBytes();
+        if (!mounted) return;
+
+        setState(() {
+          logoBase64 = base64Encode(bytes);
+          if (currentSlide.logoMode == 'none') {
+            currentSlide.logoMode = 'center';
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _removeLogo() {
+    setState(() {
+      logoBase64 = null;
+      for (final slide in slides) {
+        slide.logoMode = 'none';
+        slide.logoOpacity = 0.12;
+      }
+    });
+  }
 
   _EditableSlide _createDefaultSlide(TemplateType type) {
     switch (type) {
@@ -267,6 +359,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       itemSoldOutControllers:
           slideData.items.map((e) => ValueNotifier<bool>(e.soldOut)).toList(),
       textScale: slideData.textScale,
+      logoMode: _normalizeLogoMode(slideData.logoMode),
+      logoOpacity: _normalizeLogoOpacity(slideData.logoOpacity),
     );
 
     if ((slide.templateType == TemplateType.menu ||
@@ -285,6 +379,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     libraryNameController.text = content.name;
     boardStyle = content.boardStyle;
     fontStyle = _normalizeFontStyle(content.fontStyle);
+    logoBase64 = content.logoBase64;
 
     for (final slideData in content.slides) {
       slides.add(_createSlideFromSaved(slideData));
@@ -485,6 +580,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         }).where((e) => e.name.isNotEmpty || e.price.isNotEmpty).toList(),
         durationSeconds: _durationValue(slide),
         textScale: slide.textScale,
+        logoMode: _normalizeLogoMode(slide.logoMode),
+        logoOpacity: _normalizeLogoOpacity(slide.logoOpacity),
       );
     });
   }
@@ -508,6 +605,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       slides: _buildSavedSlides(),
       boardStyle: boardStyle,
       fontStyle: fontStyle,
+      logoBase64: logoBase64,
     );
 
     final storage = ContentStorageService();
@@ -617,9 +715,6 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       }
 
       final payload = _buildPayload();
-      print('EDITOR PAYLOAD: $payload');
-      print('EDITOR ORIENTATION: ${payload['orientation']}');
-
       final int contentVersion = payload['contentVersion'] as int;
 
       final api = ApiService('http://${widget.ip}:8080');
@@ -639,6 +734,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           slides: _buildSavedSlides(),
           boardStyle: boardStyle,
           fontStyle: fontStyle,
+          logoBase64: logoBase64,
         );
 
         final contentStorage = ContentStorageService();
@@ -695,6 +791,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       'orientation': widget.screenOrientation,
       'boardStyle': boardStyle,
       'fontStyle': fontStyle,
+      'logoBase64': logoBase64,
       'slides': List.generate(slides.length, (index) {
         final slide = slides[index];
 
@@ -729,6 +826,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           'highlightPrice': slide.highlightPriceController.text.trim().isEmpty
               ? null
               : slide.highlightPriceController.text.trim(),
+          'logoMode': _normalizeLogoMode(slide.logoMode),
+          'logoOpacity': _normalizeLogoOpacity(slide.logoOpacity),
         };
       }),
     };
@@ -759,9 +858,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   title: Text(
                     'Slide ${index + 1} · ${_templateLabel(slide.templateType)}',
                   ),
-                  subtitle: Text(
-                    'Dauer: ${_durationValue(slide)}s',
-                  ),
+                  subtitle: Text('Dauer: ${_durationValue(slide)}s'),
                   selected: isSelected,
                   onTap: () {
                     setState(() {
@@ -779,7 +876,6 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   final temp = slides[index - 1];
                                   slides[index - 1] = slides[index];
                                   slides[index] = temp;
-
                                   selectedSlideIndex = index - 1;
                                 });
                               }
@@ -793,7 +889,6 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   final temp = slides[index + 1];
                                   slides[index + 1] = slides[index];
                                   slides[index] = temp;
-
                                   selectedSlideIndex = index + 1;
                                 });
                               }
@@ -829,6 +924,69 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildLogoPreviewOverlay({
+    required bool isPortrait,
+    required double width,
+    required double height,
+    required String logoMode,
+    required double logoOpacity,
+  }) {
+    if (logoBase64 == null || logoBase64!.trim().isEmpty || logoMode == 'none') {
+      return const SizedBox.shrink();
+    }
+
+    try {
+      final image = Image.memory(
+        base64Decode(logoBase64!),
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      );
+
+      final opacity = _normalizeLogoOpacity(logoOpacity);
+
+      if (logoMode == 'topLeft') {
+        final stampWidth = isPortrait ? width * 0.20 : width * 0.16;
+        final topOffset = isPortrait ? height * 0.05 : height * 0.06;
+        final leftOffset = isPortrait ? width * 0.06 : width * 0.05;
+
+        return Positioned(
+          top: topOffset,
+          left: leftOffset,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: opacity,
+              child: Transform.rotate(
+                angle: -0.16,
+                child: SizedBox(
+                  width: stampWidth,
+                  child: image,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      final watermarkWidth = isPortrait ? width * 0.62 : width * 0.52;
+
+      return Positioned.fill(
+        child: IgnorePointer(
+          child: Center(
+            child: Opacity(
+              opacity: opacity,
+              child: SizedBox(
+                width: watermarkWidth,
+                child: image,
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
   }
 
   Widget _buildCommonFields() {
@@ -887,6 +1045,71 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           },
         ),
         const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Logo',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _pickLogo,
+                icon: const Icon(Icons.image_outlined),
+                label: Text(logoBase64 == null ? 'Logo auswählen' : 'Logo ersetzen'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (logoBase64 != null)
+              OutlinedButton.icon(
+                onPressed: _removeLogo,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Entfernen'),
+              ),
+          ],
+        ),
+        if (logoBase64 != null) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _normalizeLogoMode(currentSlide.logoMode),
+            decoration: const InputDecoration(labelText: 'Logo Position'),
+            items: const [
+              DropdownMenuItem(value: 'none', child: Text('Kein Logo auf dieser Folie')),
+              DropdownMenuItem(value: 'center', child: Text('Zentriert im Hintergrund')),
+              DropdownMenuItem(value: 'topLeft', child: Text('Oben links leicht gedreht')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                currentSlide.logoMode = _normalizeLogoMode(value);
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Logo Sichtbarkeit: ${(currentSlide.logoOpacity * 100).round()}%',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          Slider(
+            value: _normalizeLogoOpacity(currentSlide.logoOpacity),
+            min: 0.05,
+            max: 0.8,
+            divisions: 15,
+            label: '${(_normalizeLogoOpacity(currentSlide.logoOpacity) * 100).round()}%',
+            onChanged: (value) {
+              setState(() {
+                currentSlide.logoOpacity = value;
+              });
+            },
+          ),
+        ],
+        const SizedBox(height: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -911,9 +1134,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         TextField(
           controller: currentSlide.durationController,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Dauer in Sekunden',
-          ),
+          decoration: const InputDecoration(labelText: 'Dauer in Sekunden'),
         ),
       ],
     );
@@ -938,9 +1159,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   flex: 3,
                   child: TextField(
                     controller: currentSlide.itemNameControllers[index],
-                    decoration: InputDecoration(
-                      labelText: 'Name ${index + 1}',
-                    ),
+                    decoration: InputDecoration(labelText: 'Name ${index + 1}'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -948,9 +1167,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   flex: 2,
                   child: TextField(
                     controller: currentSlide.itemPriceControllers[index],
-                    decoration: InputDecoration(
-                      labelText: 'Preis ${index + 1}',
-                    ),
+                    decoration: InputDecoration(labelText: 'Preis ${index + 1}'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -966,10 +1183,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                 value ?? false;
                           },
                         ),
-                        const Text(
-                          'Ausverkauft',
-                          style: TextStyle(fontSize: 11),
-                        ),
+                        const Text('Ausverkauft', style: TextStyle(fontSize: 11)),
                       ],
                     );
                   },
@@ -1019,9 +1233,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   flex: 3,
                   child: TextField(
                     controller: currentSlide.itemNameControllers[index],
-                    decoration: InputDecoration(
-                      labelText: 'Name ${index + 1}',
-                    ),
+                    decoration: InputDecoration(labelText: 'Name ${index + 1}'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1029,9 +1241,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   flex: 2,
                   child: TextField(
                     controller: currentSlide.itemPriceControllers[index],
-                    decoration: InputDecoration(
-                      labelText: 'Preis ${index + 1}',
-                    ),
+                    decoration: InputDecoration(labelText: 'Preis ${index + 1}'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1047,10 +1257,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                 value ?? false;
                           },
                         ),
-                        const Text(
-                          'Ausverkauft',
-                          style: TextStyle(fontSize: 11),
-                        ),
+                        const Text('Ausverkauft', style: TextStyle(fontSize: 11)),
                       ],
                     );
                   },
@@ -1213,92 +1420,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-  Widget _buildFittedHeadline(
-    String text, {
-    required TextStyle style,
-    Color? color,
-  }) {
-    if (text.trim().isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return SizedBox(
-          width: constraints.maxWidth,
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              text,
-              textAlign: TextAlign.center,
-              softWrap: false,
-              maxLines: 1,
-              style: style.copyWith(color: color ?? style.color),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   int _maxMenuItemsPerSlide({bool? portrait}) {
     final usePortrait = portrait ?? _isPortraitPreview();
     return usePortrait ? 10 : 6;
   }
-
-  int _menuPreviewPageCount() {
-    if (currentSlide.templateType != TemplateType.menu &&
-        currentSlide.templateType != TemplateType.drinks) return 1;
-    final items = _visiblePreviewMenuItems();
-    final maxItems = _maxMenuItemsPerSlide();
-    if (items.isEmpty) return 1;
-    return (items.length / maxItems).ceil();
-  }
-
-  List<Map<String, String>> _visiblePreviewMenuItems() {
-    final items = _currentMenuItems();
-    final maxItems = _maxMenuItemsPerSlide();
-    if (items.length <= maxItems) return items;
-    return items.take(maxItems).toList();
-  }
-
-  Map<String, double> _getMenuScaleConfig(int itemCount, {required bool portrait}) {
-    if (portrait) {
-      return {
-        'title': 64,
-        'subtitle': 24,
-        'item': 42,
-        'price': 40,
-        'footer': 18,
-        'gap': 20,
-        'top': 38,
-        'bottom': 28,
-        'blockWidth': 0.92,
-      };
-    }
-
-    return {
-      'title': 64,
-      'subtitle': 24,
-      'item': 36,
-      'price': 34,
-      'footer': 18,
-      'gap': 18,
-      'top': 18,
-      'bottom': 20,
-      'blockWidth': 0.78,
-    };
-  }
-
-  List<Map<String, String>> _currentMenuItems() {
-    return List.generate(currentSlide.itemNameControllers.length, (index) {
-      return {
-        'name': currentSlide.itemNameControllers[index].text.trim(),
-        'price': _displayPrice(currentSlide.itemPriceControllers[index].text),
-      };
-    }).where((e) => e['name']!.isNotEmpty || e['price']!.isNotEmpty).toList();
-  }
-
 
   double _previewTextScale(Map<String, dynamic> slide) {
     final rawValue = slide['textScale'];
@@ -1462,6 +1587,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'highlightPrice': currentSlide.highlightPriceController.text.trim(),
         'items': const <Map<String, dynamic>>[],
         'textScale': currentSlide.textScale,
+        'logoMode': currentSlide.logoMode,
+        'logoOpacity': currentSlide.logoOpacity,
       };
     }
 
@@ -1492,7 +1619,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   int _currentPreviewPageCountForSelectedSlide() {
     final type = currentSlide.templateType;
     if (type != TemplateType.menu && type != TemplateType.drinks) return 1;
-    final itemCount = _currentMenuItems().length;
+    final itemCount = List.generate(currentSlide.itemNameControllers.length, (index) {
+      final name = currentSlide.itemNameControllers[index].text.trim();
+      final price = _displayPrice(currentSlide.itemPriceControllers[index].text);
+      return {'name': name, 'price': price};
+    }).where((e) => (e['name'] ?? '').toString().isNotEmpty || (e['price'] ?? '').toString().isNotEmpty).length;
     if (itemCount == 0) return 1;
     return (itemCount / _maxMenuItemsPerSlide()).ceil();
   }
@@ -1526,8 +1657,17 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           currentSlide.templateType == TemplateType.promo ||
                           currentSlide.templateType == TemplateType.welcome;
 
+                      final previewSlide = _currentPreviewSlide();
+
                       return Stack(
                         children: [
+                          _buildLogoPreviewOverlay(
+                            isPortrait: isPortrait,
+                            width: box.maxWidth,
+                            height: box.maxHeight,
+                            logoMode: _normalizeLogoMode(previewSlide['logoMode']?.toString()),
+                            logoOpacity: _normalizeLogoOpacity(previewSlide['logoOpacity']),
+                          ),
                           Padding(
                             padding: usesHeadlinePreview
                                 ? EdgeInsets.symmetric(
@@ -1585,7 +1725,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   Widget _buildPreviewSlideContent(double scale) {
     final previewSlide = _currentPreviewSlide();
-    final templateType = previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;
+    final templateType =
+        previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;
 
     switch (templateType) {
       case 'menu':

@@ -316,6 +316,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
       'orientation': orientation == 'unknown' ? widget.screenOrientation : orientation,
       'boardStyle': content.boardStyle,
       'fontStyle': content.fontStyle,
+      'logoBase64': content.logoBase64,
       'slides': List.generate(content.slides.length, (index) {
         final slide = content.slides[index];
 
@@ -338,6 +339,8 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
           'footer': slide.footer,
           'highlightTitle': slide.highlightTitle,
           'highlightPrice': slide.highlightPrice,
+          'logoMode': slide.logoMode,
+          'logoOpacity': slide.logoOpacity,
         };
       }),
     };

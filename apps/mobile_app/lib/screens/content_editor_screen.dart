@@ -73,17 +73,17 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
       };
 
       final api = ApiService('http://${widget.ip}:8080');
-      final success = await api.sendContent(payload);
+      final result = await api.sendContent(payload);
 
       if (!mounted) return;
 
-      if (success) {
+      if (result.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Content erfolgreich gesendet')),
         );
       } else {
         setState(() {
-          errorMessage = 'Content konnte nicht gesendet werden';
+          errorMessage = result.error ?? 'Content konnte nicht gesendet werden';
         });
       }
     } catch (e) {

@@ -26,29 +26,15 @@ class MenuBoardWidget extends StatelessWidget {
     required this.priceStyleBuilder,
   });
 
-  double _getItemScaleFactor(int itemCount) {
+  double _itemScaleFactor(int itemCount) {
     if (isPortrait) {
-      if (itemCount <= 3) return 1.24;
-      if (itemCount <= 5) return 1.14;
-      if (itemCount <= 7) return 1.04;
-      return 0.96;
+      if (itemCount <= 3) return 1.20;
+      if (itemCount <= 5) return 1.10;
+      if (itemCount <= 7) return 1.02;
+      return 0.95;
     }
-
-    if (itemCount <= 3) return 1.22;
-    if (itemCount <= 5) return 1.10;
-    return 0.98;
-  }
-
-  double _getTitleScaleFactor(int itemCount) {
-    if (isPortrait) {
-      if (itemCount <= 3) return 1.00;
-      if (itemCount <= 5) return 1.02;
-      if (itemCount <= 7) return 1.01;
-      return 0.96;
-    }
-
-    if (itemCount <= 3) return 1.04;
-    if (itemCount <= 5) return 1.02;
+    if (itemCount <= 3) return 1.18;
+    if (itemCount <= 5) return 1.08;
     return 0.98;
   }
 
@@ -62,77 +48,67 @@ class MenuBoardWidget extends StatelessWidget {
     return words.map((e) => e.length).reduce((a, b) => a > b ? a : b);
   }
 
-  double _getSingleWordAdjustment(List<Map<String, dynamic>> items) {
+  double _singleWordAdjustment(List<Map<String, dynamic>> items) {
     final longestWord = items
         .map((item) => _longestWordLength((item['name'] ?? '').toString()))
         .fold<int>(0, (a, b) => a > b ? a : b);
 
     if (isPortrait) {
-      if (longestWord >= 16) return 0.94;
-      if (longestWord >= 14) return 0.97;
+      if (longestWord >= 16) return 0.95;
+      if (longestWord >= 14) return 0.98;
       return 1.0;
     }
 
-    if (longestWord >= 18) return 0.94;
-    if (longestWord >= 15) return 0.97;
+    if (longestWord >= 18) return 0.95;
+    if (longestWord >= 15) return 0.98;
     return 1.0;
-  }
-
-  double _priceColumnWidthFactor(bool hasSoldOutItems) {
-    if (isPortrait) {
-      return hasSoldOutItems ? 0.34 : 0.22;
-    }
-    return hasSoldOutItems ? 0.30 : 0.20;
-  }
-
-  int _nameMaxLines(bool hasSoldOutItems) {
-    if (isPortrait) {
-      return hasSoldOutItems ? 3 : 2;
-    }
-    return 2;
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final h = constraints.maxHeight;
+        final baseWidth = isPortrait ? 1080.0 : 1920.0;
+        final baseHeight = isPortrait ? 1920.0 : 1080.0;
+        final scaleX = constraints.maxWidth / baseWidth;
+        final scaleY = constraints.maxHeight / baseHeight;
+        final scale = scaleX < scaleY ? scaleX : scaleY;
+
         final itemCount = items.length;
-        final itemScale = _getItemScaleFactor(itemCount);
-        final titleScale = _getTitleScaleFactor(itemCount);
-        final singleWordAdjustment = _getSingleWordAdjustment(items);
+        final itemScale = _itemScaleFactor(itemCount);
+        final singleWordAdjustment = _singleWordAdjustment(items);
         final hasSoldOutItems = items.any((item) => item['soldOut'] == true);
-
-        final titleFont = (isPortrait ? h * 0.070 : h * 0.095) * titleScale;
-        final subtitleFont = (isPortrait ? h * 0.026 : h * 0.036) * itemScale;
-
         final hasVeryLongItem = items.any((item) {
           final name = (item['name'] ?? '').toString().trim();
           return name.length >= (isPortrait ? 24 : 20);
         });
 
+        final titleFont = (isPortrait ? 134.0 : 104.0) * scale;
+        final subtitleFont = (isPortrait ? 50.0 : 38.0) * scale;
         final itemFont =
-            (isPortrait ? h * 0.045 : h * 0.052) *
+            (isPortrait ? 86.0 : 56.0) *
+            scale *
             itemScale *
-            (hasVeryLongItem ? 0.95 : 1.0) *
+            (hasVeryLongItem ? 0.96 : 1.0) *
             singleWordAdjustment;
-
-        final priceFont = (isPortrait ? h * 0.043 : h * 0.050) * itemScale;
+        final priceFont = (isPortrait ? 82.0 : 54.0) * scale * itemScale;
         final soldOutFont = priceFont * (isPortrait ? 0.58 : 0.62);
-        final footerFont = (isPortrait ? h * 0.018 : h * 0.022) * itemScale;
-        final topSpace =
-            (isPortrait ? h * 0.018 : h * 0.010) * (isPortrait ? 0.90 : 1.0);
-        final betweenHeader =
-            (isPortrait ? h * 0.010 : h * 0.014) * itemScale;
-        final betweenListAndFooter =
-            (isPortrait ? h * 0.010 : h * 0.012) * itemScale;
-        final rowGap =
-            (isPortrait ? h * 0.008 : h * 0.010) * (isPortrait ? 0.85 : 1.0);
-        final columnGap =
-            (isPortrait ? h * 0.020 : h * 0.018) * (isPortrait ? 0.90 : 1.0);
+        final footerFont = (isPortrait ? 34.0 : 24.0) * scale;
+
+        final topSpace = (isPortrait ? 34.0 : 18.0) * scale;
+        final betweenHeader = (isPortrait ? 18.0 : 12.0) * scale;
+        final columnGap = (isPortrait ? 38.0 : 20.0) * scale;
+        final rowGap = (isPortrait ? 16.0 : 12.0) * scale;
+        final betweenListAndFooter = (isPortrait ? 18.0 : 12.0) * scale;
+        final sideGap = (isPortrait ? 18.0 : 20.0) * scale;
+
         final priceColumnWidth =
-            constraints.maxWidth * _priceColumnWidthFactor(hasSoldOutItems);
-        final nameLines = _nameMaxLines(hasSoldOutItems);
+            (isPortrait
+                    ? (hasSoldOutItems ? 320.0 : 200.0)
+                    : (hasSoldOutItems ? 300.0 : 220.0)) *
+            scale;
+
+        final nameLines = isPortrait ? (hasSoldOutItems ? 3 : 2) : 2;
 
         return Column(
           children: [
@@ -158,11 +134,11 @@ class MenuBoardWidget extends StatelessWidget {
                 style: bodyStyleBuilder(subtitleFont),
               ),
             if (pageLabel != null && pageLabel!.trim().isNotEmpty) ...[
-              SizedBox(height: h * 0.006),
+              SizedBox(height: 10 * scale),
               Text(
                 pageLabel!,
                 textAlign: TextAlign.center,
-                style: bodyStyleBuilder(h * 0.014),
+                style: bodyStyleBuilder(26 * scale),
               ),
             ],
             SizedBox(height: columnGap),
@@ -196,9 +172,7 @@ class MenuBoardWidget extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  SizedBox(
-                                    width: isPortrait ? h * 0.010 : h * 0.014,
-                                  ),
+                                  SizedBox(width: sideGap),
                                   SizedBox(
                                     width: priceColumnWidth,
                                     child: Align(
@@ -248,7 +222,7 @@ class MenuBoardWidget extends StatelessWidget {
                 style: bodyStyleBuilder(footerFont),
               ),
             ],
-            SizedBox(height: isPortrait ? h * 0.010 : h * 0.008),
+            SizedBox(height: (isPortrait ? 16.0 : 10.0) * scale),
           ],
         );
       },

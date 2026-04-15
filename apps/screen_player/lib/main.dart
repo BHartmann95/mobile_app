@@ -811,6 +811,125 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     return _getContentOrientation() == 'portrait';
   }
 
+
+  String? _getLogoBase64() {
+    final value = contentPackage?['logoBase64']?.toString().trim();
+    if (value == null || value.isEmpty) return null;
+    return value;
+  }
+  String _getSlideLogoMode(Map<String, dynamic>? slide) {
+    final value = slide?['logoMode']?.toString().trim().toLowerCase();
+    switch (value) {
+      case 'center':
+      case 'centerwatermark':
+      case 'watermark':
+        return 'center';
+      case 'topleft':
+      case 'top_left':
+      case 'top-left':
+      case 'stamp':
+        return 'topLeft';
+      default:
+        return 'none';
+    }
+  }
+
+  double _getSlideLogoOpacity(Map<String, dynamic>? slide) {
+    final value = slide?['logoOpacity'];
+    double resolved = 0.12;
+    if (value is num) {
+      resolved = value.toDouble();
+    } else if (value is String) {
+      resolved = double.tryParse(value) ?? 0.12;
+    }
+    if (resolved.isNaN || resolved.isInfinite) {
+      return 0.12;
+    }
+    if (resolved > 1) {
+      resolved = resolved / 100.0;
+    }
+    return resolved.clamp(0.05, 0.80).toDouble();
+  }
+
+  Widget _buildLogoOverlay(Map<String, dynamic>? slide) {
+    final raw = _getLogoBase64();
+    if (raw == null) return const SizedBox.shrink();
+
+    try {
+      final bytes = base64Decode(raw);
+      final isPortrait = _isPortraitContent();
+      final mode = _getSlideLogoMode(slide);
+
+      if (mode == 'topLeft') {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final stampWidth = isPortrait
+                ? constraints.maxWidth * 0.20
+                : constraints.maxWidth * 0.16;
+
+            return IgnorePointer(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: constraints.maxWidth * 0.055,
+                    top: constraints.maxHeight * 0.055,
+                  ),
+                  child: Opacity(
+                    opacity: _getSlideLogoOpacity(slide),
+                    child: Transform.rotate(
+                      angle: -0.16,
+                      child: SizedBox(
+                        width: stampWidth,
+                        child: Image.memory(
+                          bytes,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }
+
+      if (mode == 'center') {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final watermarkWidth = isPortrait
+                ? constraints.maxWidth * 0.62
+                : constraints.maxWidth * 0.52;
+
+            return IgnorePointer(
+              child: Center(
+                child: Opacity(
+                  opacity: _getSlideLogoOpacity(slide),
+                  child: SizedBox(
+                    width: watermarkWidth,
+                    child: Image.memory(
+                      bytes,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }
+
+      return const SizedBox.shrink();
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+  }
+
   String _getFontStyle([Map<String, dynamic>? slide]) {
     final raw = (slide?['fontStyle'] ?? contentPackage?['fontStyle'])
         ?.toString()
@@ -1300,6 +1419,9 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
           color: _getBoardColor(),
           child: Stack(
             children: [
+              Positioned.fill(
+                child: _buildLogoOverlay(slide),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 80,

@@ -210,10 +210,7 @@ class ApiService {
         }
       } catch (_) {}
 
-      return ApiResult(
-        success: false,
-        error: error,
-      );
+      return ApiResult(success: false, error: error);
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         return const ApiResult(
@@ -266,7 +263,8 @@ class ApiService {
       if (decoded['success'] != true) {
         return ScreenContentResult(
           success: false,
-          error: decoded['error']?.toString() ?? 'Content konnte nicht geladen werden',
+          error: decoded['error']?.toString() ??
+              'Content konnte nicht geladen werden',
         );
       }
 
@@ -278,11 +276,12 @@ class ApiService {
         );
       }
 
-      final screenName = (decoded['screenName']?.toString().trim().isNotEmpty ?? false)
-          ? decoded['screenName']!.toString().trim()
-          : (fallbackName?.trim().isNotEmpty ?? false)
-              ? fallbackName!.trim()
-              : 'Screen-Inhalt';
+      final screenName =
+          (decoded['screenName']?.toString().trim().isNotEmpty ?? false)
+              ? decoded['screenName']!.toString().trim()
+              : (fallbackName?.trim().isNotEmpty ?? false)
+                  ? fallbackName!.trim()
+                  : 'Screen-Inhalt';
 
       final orientation = _normalizeOrientation(
         decoded['orientation']?.toString(),
@@ -424,6 +423,8 @@ class ApiService {
           }).toList(),
           durationSeconds: _parseInt(slideMap['durationSeconds']) ?? 10,
           textScale: _parseDouble(slideMap['textScale']) ?? 1.0,
+          logoMode: _normalizeLogoMode(slideMap['logoMode']?.toString()),
+          logoOpacity: _normalizeLogoOpacity(slideMap['logoOpacity']),
         ),
       );
     }
@@ -441,6 +442,8 @@ class ApiService {
               highlightPrice: null,
               items: const [],
               durationSeconds: 10,
+              logoMode: 'none',
+              logoOpacity: 0.12,
             ),
           ];
 
@@ -453,6 +456,7 @@ class ApiService {
       boardStyle: _normalizeBoardStyle(payload['boardStyle']?.toString()),
       fontStyle: _normalizeFontStyle(payload['fontStyle']?.toString()),
       orientation: orientation,
+      logoBase64: _nullableString(payload['logoBase64']),
     );
   }
 
@@ -466,6 +470,8 @@ class ApiService {
 
   TemplateType _templateTypeFromString(String? value) {
     switch ((value ?? '').trim().toLowerCase()) {
+      case 'drinks':
+        return TemplateType.drinks;
       case 'promo':
         return TemplateType.promo;
       case 'welcome':
@@ -474,6 +480,33 @@ class ApiService {
       default:
         return TemplateType.menu;
     }
+  }
+
+  String _normalizeLogoMode(String? value) {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'center':
+      case 'centerwatermark':
+      case 'watermark':
+        return 'center';
+      case 'topleft':
+      case 'top_left':
+      case 'top-left':
+      case 'stamp':
+        return 'topLeft';
+      case 'none':
+      default:
+        return 'none';
+    }
+  }
+
+  double _normalizeLogoOpacity(Object? value) {
+    final parsed =
+        value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
+    if (parsed == null || parsed.isNaN || parsed.isInfinite) {
+      return 0.12;
+    }
+    final normalized = parsed > 1 ? parsed / 100.0 : parsed;
+    return normalized.clamp(0.05, 0.8).toDouble();
   }
 
   String _normalizeBoardStyle(String? value) {
@@ -507,7 +540,9 @@ class ApiService {
     if (normalized == 'landscape') {
       return 'landscape';
     }
-    return fallback.trim().toLowerCase() == 'portrait' ? 'portrait' : 'landscape';
+    return fallback.trim().toLowerCase() == 'portrait'
+        ? 'portrait'
+        : 'landscape';
   }
 
   int? _parseInt(Object? value) {

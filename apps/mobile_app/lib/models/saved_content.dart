@@ -52,6 +52,8 @@ class SavedSlide {
   final List<SavedMenuItem> items;
   final int durationSeconds;
   final double textScale;
+  final String logoMode;
+  final double logoOpacity;
 
   const SavedSlide({
     required this.id,
@@ -64,6 +66,8 @@ class SavedSlide {
     required this.items,
     required this.durationSeconds,
     this.textScale = 1.0,
+    this.logoMode = 'none',
+    this.logoOpacity = 0.12,
   });
 
   Map<String, dynamic> toJson() {
@@ -78,6 +82,8 @@ class SavedSlide {
       'items': items.map((e) => e.toJson()).toList(),
       'durationSeconds': durationSeconds,
       'textScale': textScale,
+      'logoMode': logoMode,
+      'logoOpacity': logoOpacity,
     };
   }
 
@@ -95,6 +101,8 @@ class SavedSlide {
           .toList(),
       durationSeconds: (json['durationSeconds'] as num?)?.toInt() ?? 10,
       textScale: ((json['textScale'] as num?)?.toDouble() ?? 1.0).clamp(0.8, 1.25),
+      logoMode: _normalizeLogoMode(json['logoMode']?.toString()),
+      logoOpacity: _normalizeLogoOpacity(json['logoOpacity']),
     );
   }
 
@@ -109,6 +117,8 @@ class SavedSlide {
     List<SavedMenuItem>? items,
     int? durationSeconds,
     double? textScale,
+    String? logoMode,
+    double? logoOpacity,
   }) {
     return SavedSlide(
       id: id ?? this.id,
@@ -121,7 +131,35 @@ class SavedSlide {
       items: items ?? this.items,
       durationSeconds: durationSeconds ?? this.durationSeconds,
       textScale: textScale ?? this.textScale,
+      logoMode: logoMode ?? this.logoMode,
+      logoOpacity: logoOpacity ?? this.logoOpacity,
     );
+  }
+
+
+  static String _normalizeLogoMode(String? value) {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'center':
+      case 'centerwatermark':
+      case 'watermark':
+        return 'center';
+      case 'topleft':
+      case 'top_left':
+      case 'top-left':
+      case 'stamp':
+        return 'topLeft';
+      case 'none':
+      default:
+        return 'none';
+    }
+  }
+
+  static double _normalizeLogoOpacity(Object? value) {
+    final parsed = value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
+    if (parsed == null || parsed.isNaN || parsed.isInfinite) {
+      return 0.12;
+    }
+    return parsed.clamp(0.05, 0.8).toDouble();
   }
 
   static TemplateType _templateTypeFromString(String value) {
@@ -148,6 +186,7 @@ class SavedContent {
   final String boardStyle;
   final String fontStyle;
   final String orientation;
+  final String? logoBase64;
 
   const SavedContent({
     required this.id,
@@ -158,6 +197,7 @@ class SavedContent {
     this.boardStyle = 'black',
     this.fontStyle = 'chalk',
     this.orientation = 'unknown',
+    this.logoBase64,
   });
 
   Map<String, dynamic> toJson() {
@@ -170,6 +210,7 @@ class SavedContent {
       'boardStyle': boardStyle,
       'fontStyle': fontStyle,
       'orientation': orientation,
+      'logoBase64': logoBase64,
     };
   }
 
@@ -187,6 +228,7 @@ class SavedContent {
       boardStyle: (json['boardStyle'] ?? 'black').toString(),
       fontStyle: _normalizeFontStyle(json['fontStyle']?.toString()),
       orientation: _normalizeOrientation(json['orientation']?.toString()),
+      logoBase64: json['logoBase64']?.toString(),
     );
   }
 
@@ -227,6 +269,7 @@ class SavedContent {
     String? boardStyle,
     String? fontStyle,
     String? orientation,
+    String? logoBase64,
   }) {
     return SavedContent(
       id: id ?? this.id,
@@ -237,6 +280,7 @@ class SavedContent {
       boardStyle: boardStyle ?? this.boardStyle,
       fontStyle: fontStyle ?? this.fontStyle,
       orientation: orientation ?? this.orientation,
+      logoBase64: logoBase64 ?? this.logoBase64,
     );
   }
 

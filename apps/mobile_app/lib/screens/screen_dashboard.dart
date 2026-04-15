@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/saved_content.dart';
+import '../services/api_service.dart';
 import '../services/content_storage_service.dart';
 import 'template_selection_screen.dart';
 import 'content_library_screen.dart';
@@ -43,13 +44,11 @@ class ScreenDashboardPage extends StatelessWidget {
     );
   }
 
-  Future<SavedContent?> _loadAssignedContent() async {
+  Future<SavedContent?> _loadLocallyAssignedContent() async {
     final storage = ContentStorageService();
     final contents = await storage.loadContents();
 
-    final matches = contents
-        .where((content) => content.lastUsedScreenIp == ip)
-        .toList();
+    final matches = contents.where((content) => content.lastUsedScreenIp == ip).toList();
 
     if (matches.isEmpty) {
       return null;
@@ -59,33 +58,85 @@ class ScreenDashboardPage extends StatelessWidget {
     return matches.first;
   }
 
+  Future<ScreenContentResult> _loadCurrentScreenContentLive() async {
+    final api = ApiService('http://$ip:8080');
+
+    return api.getCurrentContent(
+      fallbackName: screenName,
+      fallbackOrientation: screenOrientation,
+      stableContentId: 'screen_content_$ip',
+    );
+  }
+
   Future<void> _openAssignedContentEditor(BuildContext context) async {
-    final assigned = await _loadAssignedContent();
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final liveResult = await _loadCurrentScreenContentLive();
 
     if (!context.mounted) return;
 
-    if (assigned == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Diesem Screen ist aktuell noch kein gespeicherter Inhalt direkt zugeordnet.',
+    if (liveResult.success && liveResult.savedContent != null) {
+      final liveContent = liveResult.savedContent!;
+
+      final storage = ContentStorageService();
+      await storage.addOrUpdateContent(liveContent);
+
+      if (!context.mounted) return;
+
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => TemplateEditorScreen(
+            ip: ip,
+            screenName: screenName,
+            screenOrientation: liveResult.orientation ?? screenOrientation,
+            templateType: liveContent.slides.isNotEmpty
+                ? liveContent.slides.first.templateType
+                : liveContent.templateType!,
+            initialContent: liveContent,
           ),
         ),
       );
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TemplateEditorScreen(
-          ip: ip,
-          screenName: screenName,
-          screenOrientation: screenOrientation,
-          templateType: assigned.slides.isNotEmpty
-              ? assigned.slides.first.templateType
-              : assigned.templateType!,
-          initialContent: assigned,
+    final assigned = await _loadLocallyAssignedContent();
+
+    if (!context.mounted) return;
+
+    if (assigned != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            liveResult.error == null || liveResult.error!.trim().isEmpty
+                ? 'Live-Inhalt vom Screen konnte nicht geladen werden. Es wird der lokal gespeicherte Inhalt geöffnet.'
+                : 'Live-Inhalt vom Screen konnte nicht geladen werden (${liveResult.error}). Es wird der lokal gespeicherte Inhalt geöffnet.',
+          ),
+        ),
+      );
+
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => TemplateEditorScreen(
+            ip: ip,
+            screenName: screenName,
+            screenOrientation: screenOrientation,
+            templateType: assigned.slides.isNotEmpty
+                ? assigned.slides.first.templateType
+                : assigned.templateType!,
+            initialContent: assigned,
+          ),
+        ),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          liveResult.error == null || liveResult.error!.trim().isEmpty
+              ? 'Am Screen ist aktuell kein gespeicherter Inhalt vorhanden.'
+              : 'Kein aktueller Screen-Inhalt verfügbar: ${liveResult.error}',
         ),
       ),
     );
@@ -147,7 +198,7 @@ class ScreenDashboardPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Wähle aus, ob du neuen Content erstellen, bereits gespeicherte Inhalte senden oder den zuletzt diesem Screen zugewiesenen Inhalt direkt bearbeiten möchtest.',
+                    'Wähle aus, ob du neuen Content erstellen, bereits gespeicherte Inhalte senden oder den aktuellen Inhalt direkt vom Screen laden und bearbeiten möchtest.',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade800,
@@ -258,7 +309,8 @@ class ScreenDashboardPage extends StatelessWidget {
           _buildActionCard(
             icon: Icons.edit_note,
             title: 'Aktuellen Screen-Inhalt bearbeiten',
-            subtitle: 'Öffnet den zuletzt diesem Screen zugewiesenen gespeicherten Inhalt direkt im Editor',
+            subtitle:
+                'Lädt den aktuellen Inhalt direkt live vom Screen und öffnet ihn im Editor',
             onTap: () => _openAssignedContentEditor(context),
             primary: true,
           ),
