@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../models/saved_content.dart';
 import '../models/template.dart';
 
@@ -48,6 +51,18 @@ class ApiResult {
   const ApiResult({
     required this.success,
     this.error,
+  });
+}
+
+class UploadableAsset {
+  final String assetId;
+  final String fileName;
+  final File file;
+
+  const UploadableAsset({
+    required this.assetId,
+    required this.fileName,
+    required this.file,
   });
 }
 
@@ -193,24 +208,13 @@ class ApiService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 6));
 
       if (response.statusCode == 200) {
         return const ApiResult(success: true);
       }
 
-      String error = 'Serverfehler (${response.statusCode})';
-
-      try {
-        final decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic> &&
-            decoded['error'] is String &&
-            (decoded['error'] as String).trim().isNotEmpty) {
-          error = decoded['error'] as String;
-        }
-      } catch (_) {}
-
-      return ApiResult(success: false, error: error);
+      return ApiResult(success: false, error: _extractError(response));
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
         return const ApiResult(
@@ -224,6 +228,70 @@ class ApiService {
         error: 'Keine Verbindung zum Screen',
       );
     }
+  }
+
+  Future<ApiResult> sendContentPackage(
+    Map<String, dynamic> payload,
+    List<UploadableAsset> assets,
+  ) async {
+    for (final asset in assets) {
+      final uploadResult = await _uploadAsset(asset);
+      if (!uploadResult.success) {
+        return uploadResult;
+      }
+    }
+
+    return sendContent(payload);
+  }
+
+  Future<ApiResult> _uploadAsset(UploadableAsset asset) async {
+    final url = Uri.parse('$baseUrl/asset');
+
+    try {
+      final bytes = await asset.file.readAsBytes();
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-Asset-Id': asset.assetId,
+              'X-File-Name': asset.fileName,
+            },
+            body: bytes,
+          )
+          .timeout(const Duration(seconds: 12));
+
+      if (response.statusCode == 200) {
+        return const ApiResult(success: true);
+      }
+
+      return ApiResult(success: false, error: _extractError(response));
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        return ApiResult(
+          success: false,
+          error: 'Asset-Upload Timeout: ${asset.fileName}',
+        );
+      }
+
+      return ApiResult(
+        success: false,
+        error: 'Asset konnte nicht hochgeladen werden: ${asset.fileName}',
+      );
+    }
+  }
+
+  String _extractError(http.Response response) {
+    String error = 'Serverfehler (${response.statusCode})';
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic> &&
+          decoded['error'] is String &&
+          (decoded['error'] as String).trim().isNotEmpty) {
+        error = decoded['error'] as String;
+      }
+    } catch (_) {}
+    return error;
   }
 
   Future<ScreenContentResult> getCurrentContent({
@@ -288,7 +356,7 @@ class ApiService {
         fallbackOrientation,
       );
 
-      final savedContent = _mapScreenPayloadToSavedContent(
+      final savedContent = await _mapScreenPayloadToSavedContent(
         rawContent,
         screenName: screenName,
         orientation: orientation,
@@ -382,14 +450,16 @@ class ApiService {
     }
   }
 
-  SavedContent _mapScreenPayloadToSavedContent(
+  Future<SavedContent> _mapScreenPayloadToSavedContent(
     Map<String, dynamic> payload, {
     required String screenName,
     required String orientation,
     String? stableContentId,
-  }) {
+  }) async {
     final rawSlides = (payload['slides'] as List?) ?? const [];
     final slides = <SavedSlide>[];
+    final resolvedContentId =
+        stableContentId ?? 'screen_content_${Uri.encodeComponent(baseUrl)}';
 
     for (var i = 0; i < rawSlides.length; i++) {
       final rawSlide = rawSlides[i];
@@ -399,6 +469,18 @@ class ApiService {
 
       final slideMap = Map<String, dynamic>.from(rawSlide);
       final rawItems = (slideMap['items'] as List?) ?? const [];
+      final imageAssetId = _nullableString(slideMap['imageAssetId']);
+      final imageFileName = _nullableString(slideMap['imageFileName']);
+      String? localPhotoPath;
+
+      if (imageAssetId != null && imageFileName != null) {
+        final cachedFile = await _downloadAssetToLocalCache(
+          assetId: imageAssetId,
+          fileName: imageFileName,
+          stableContentId: resolvedContentId,
+        );
+        localPhotoPath = cachedFile?.path;
+      }
 
       slides.add(
         SavedSlide(
@@ -425,6 +507,10 @@ class ApiService {
           textScale: _parseDouble(slideMap['textScale']) ?? 1.0,
           logoMode: _normalizeLogoMode(slideMap['logoMode']?.toString()),
           logoOpacity: _normalizeLogoOpacity(slideMap['logoOpacity']),
+          photoPath: localPhotoPath,
+          photoFileName: imageFileName,
+          imageAssetId: imageAssetId,
+          photoScale: _parsePhotoScale(slideMap['photoScale']),
         ),
       );
     }
@@ -448,7 +534,7 @@ class ApiService {
           ];
 
     return SavedContent(
-      id: stableContentId ?? 'screen_content_${Uri.encodeComponent(baseUrl)}',
+      id: resolvedContentId,
       name: '$screenName – Aktueller Screen-Inhalt',
       templateType: normalizedSlides.first.templateType,
       lastUsedScreenIp: _extractIpFromBaseUrl(),
@@ -458,6 +544,44 @@ class ApiService {
       orientation: orientation,
       logoBase64: _nullableString(payload['logoBase64']),
     );
+  }
+
+
+  Future<File?> _downloadAssetToLocalCache({
+    required String assetId,
+    required String fileName,
+    required String stableContentId,
+  }) async {
+    try {
+      final encodedAssetId = Uri.encodeQueryComponent(assetId);
+      final url = Uri.parse('$baseUrl/asset?assetId=$encodedAssetId');
+      final response = await http.get(url).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
+        return null;
+      }
+
+      final docsDir = await getApplicationDocumentsDirectory();
+      final safeFolder = _sanitizePathSegment(stableContentId);
+      final targetDir = Directory('${docsDir.path}/screen_imports/$safeFolder');
+      if (!await targetDir.exists()) {
+        await targetDir.create(recursive: true);
+      }
+
+      final sanitizedFileName = _sanitizePathSegment(
+        fileName.trim().isEmpty ? 'image.jpg' : fileName,
+      );
+      final targetFile = File('${targetDir.path}/$sanitizedFileName');
+      await targetFile.writeAsBytes(response.bodyBytes, flush: true);
+      return targetFile;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _sanitizePathSegment(String raw) {
+    final sanitized = raw.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    return sanitized.isEmpty ? 'file' : sanitized;
   }
 
   String? _extractIpFromBaseUrl() {
@@ -476,6 +600,8 @@ class ApiService {
         return TemplateType.promo;
       case 'welcome':
         return TemplateType.welcome;
+      case 'photo':
+        return TemplateType.photo;
       case 'menu':
       default:
         return TemplateType.menu;
@@ -556,6 +682,13 @@ class ApiService {
     if (value is num) return value.toDouble().clamp(0.8, 1.25).toDouble();
     final parsed = double.tryParse(value?.toString() ?? '');
     return parsed == null ? null : parsed.clamp(0.8, 1.25).toDouble();
+  }
+
+  double _parsePhotoScale(Object? value) {
+    if (value is double) return value.clamp(0.8, 1.2).toDouble();
+    if (value is num) return value.toDouble().clamp(0.8, 1.2).toDouble();
+    final parsed = double.tryParse(value?.toString() ?? '');
+    return parsed == null ? 1.0 : parsed.clamp(0.8, 1.2).toDouble();
   }
 
   String? _nullableString(Object? value) {

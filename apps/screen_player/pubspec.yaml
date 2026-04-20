@@ -1,52 +1,39 @@
 name: screen_player
-description: Digital Signage Screen Player (Local, Offline-first)
+description: Digital Chalkboard Screen Player
 publish_to: 'none'
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.3.0
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-
-  # HTTP (für späteren lokalen Server + optional zukünftige Erweiterung)
   http: ^1.2.1
-
-  # lokale Speicherung kleiner Daten (Device ID, Flags)
+  path_provider: ^2.1.2
+  package_info_plus: ^8.0.0
   shared_preferences: ^2.2.3
-
-  # UUID für eindeutige Gerätekennung
-  uuid: ^4.4.0
-
-  # Zugriff auf lokalen Speicher (Content JSON speichern)
-  path_provider: ^2.1.4
-
   qr_flutter: ^4.1.0
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  flutter_lints: ^6.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
 
-  assets:
-    - assets/fonts/
-
   fonts:
-    - family: ConteScript
-      fonts:
-        - asset: assets/fonts/ConteScriptReduced.ttf
-
     - family: Gobsmacked
       fonts:
         - asset: assets/fonts/Gobsmacked.otf
+
+    - family: ConteScriptReduced
+      fonts:
+        - asset: assets/fonts/ConteScriptReduced.ttf
 
     - family: KillingLoneliness
       fonts:

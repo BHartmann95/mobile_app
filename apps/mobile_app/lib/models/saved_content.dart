@@ -54,6 +54,10 @@ class SavedSlide {
   final double textScale;
   final String logoMode;
   final double logoOpacity;
+  final String? photoPath;
+  final String? photoFileName;
+  final String? imageAssetId;
+  final double photoScale;
 
   const SavedSlide({
     required this.id,
@@ -68,6 +72,10 @@ class SavedSlide {
     this.textScale = 1.0,
     this.logoMode = 'none',
     this.logoOpacity = 0.12,
+    this.photoPath,
+    this.photoFileName,
+    this.imageAssetId,
+    this.photoScale = 1.0,
   });
 
   Map<String, dynamic> toJson() {
@@ -84,6 +92,10 @@ class SavedSlide {
       'textScale': textScale,
       'logoMode': logoMode,
       'logoOpacity': logoOpacity,
+      'photoPath': photoPath,
+      'photoFileName': photoFileName,
+      'imageAssetId': imageAssetId,
+      'photoScale': photoScale,
     };
   }
 
@@ -103,6 +115,10 @@ class SavedSlide {
       textScale: ((json['textScale'] as num?)?.toDouble() ?? 1.0).clamp(0.8, 1.25),
       logoMode: _normalizeLogoMode(json['logoMode']?.toString()),
       logoOpacity: _normalizeLogoOpacity(json['logoOpacity']),
+      photoPath: _nullableString(json['photoPath']),
+      photoFileName: _nullableString(json['photoFileName']),
+      imageAssetId: _nullableString(json['imageAssetId']),
+      photoScale: ((json['photoScale'] as num?)?.toDouble() ?? 1.0).clamp(0.8, 1.2),
     );
   }
 
@@ -119,6 +135,10 @@ class SavedSlide {
     double? textScale,
     String? logoMode,
     double? logoOpacity,
+    String? photoPath,
+    String? photoFileName,
+    String? imageAssetId,
+    double? photoScale,
   }) {
     return SavedSlide(
       id: id ?? this.id,
@@ -133,9 +153,17 @@ class SavedSlide {
       textScale: textScale ?? this.textScale,
       logoMode: logoMode ?? this.logoMode,
       logoOpacity: logoOpacity ?? this.logoOpacity,
+      photoPath: photoPath ?? this.photoPath,
+      photoFileName: photoFileName ?? this.photoFileName,
+      imageAssetId: imageAssetId ?? this.imageAssetId,
+      photoScale: photoScale ?? this.photoScale,
     );
   }
 
+  static String? _nullableString(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? null : text;
+  }
 
   static String _normalizeLogoMode(String? value) {
     switch ((value ?? '').trim().toLowerCase()) {
@@ -170,6 +198,8 @@ class SavedSlide {
         return TemplateType.promo;
       case 'welcome':
         return TemplateType.welcome;
+      case 'photo':
+        return TemplateType.photo;
       case 'menu':
       default:
         return TemplateType.menu;
@@ -251,7 +281,6 @@ class SavedContent {
         return 'chalk';
     }
   }
-
 
   static String _normalizeOrientation(String? value) {
     final normalized = (value ?? '').trim().toLowerCase();

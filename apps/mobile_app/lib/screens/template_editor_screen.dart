@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/template.dart';
 import '../models/saved_content.dart';
 import '../services/api_service.dart';
@@ -48,6 +52,9 @@ class _EditableSlide {
   double textScale;
   String logoMode;
   double logoOpacity;
+  String? photoPath;
+  String? photoFileName;
+  double photoScale;
 
   _EditableSlide({
     required this.templateType,
@@ -63,6 +70,9 @@ class _EditableSlide {
     this.textScale = 1.0,
     this.logoMode = 'none',
     this.logoOpacity = 0.12,
+    this.photoPath,
+    this.photoFileName,
+    this.photoScale = 1.0,
   });
 
   void dispose() {
@@ -234,6 +244,152 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     } catch (_) {}
   }
 
+  Future<Directory> _getManagedImageDirectory() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final target = Directory('${dir.path}/content_assets/$contentId');
+    if (!await target.exists()) {
+      await target.create(recursive: true);
+    }
+    return target;
+  }
+
+  String _sanitizeFileName(String raw) {
+    final cleaned = raw.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    return cleaned.isEmpty ? 'image.jpg' : cleaned;
+  }
+
+
+  Future<ImageSource?> _showPhotoSourceSheet() async {
+    if (!mounted) return null;
+
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Mediathek'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Foto aufnehmen'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.close),
+              title: const Text('Abbrechen'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List> _cropAndResizePhoto(Uint8List bytes) async {
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+
+    final targetWidth = _isPortraitPreview() ? 1080 : 1920;
+    final targetHeight = _isPortraitPreview() ? 1920 : 1080;
+    final targetAspect = targetWidth / targetHeight;
+
+    final sourceWidth = image.width.toDouble();
+    final sourceHeight = image.height.toDouble();
+    final sourceAspect = sourceWidth / sourceHeight;
+
+    double cropWidth = sourceWidth;
+    double cropHeight = sourceHeight;
+    double cropLeft = 0;
+    double cropTop = 0;
+
+    if (sourceAspect > targetAspect) {
+      cropWidth = sourceHeight * targetAspect;
+      cropLeft = (sourceWidth - cropWidth) / 2;
+    } else if (sourceAspect < targetAspect) {
+      cropHeight = sourceWidth / targetAspect;
+      cropTop = (sourceHeight - cropHeight) / 2;
+    }
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final paint = Paint()..filterQuality = FilterQuality.high;
+
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(cropLeft, cropTop, cropWidth, cropHeight),
+      Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble()),
+      paint,
+    );
+
+    final picture = recorder.endRecording();
+    final resized = await picture.toImage(targetWidth, targetHeight);
+    final byteData = await resized.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) {
+      throw Exception('Bild konnte nicht verarbeitet werden');
+    }
+
+    return byteData.buffer.asUint8List();
+  }
+
+  Future<Map<String, String>?> _pickManagedPhotoFile() async {
+    try {
+      final source = await _showPhotoSourceSheet();
+      if (source == null) return null;
+
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 100,
+      );
+      if (picked == null) return null;
+
+      final bytes = await picked.readAsBytes();
+      final processedBytes = await _cropAndResizePhoto(bytes);
+
+      final fileName =
+          '${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(99999).toString().padLeft(5, '0')}.png';
+
+      final targetDir = await _getManagedImageDirectory();
+      final targetFile = File('${targetDir.path}/${_sanitizeFileName(fileName)}');
+      await targetFile.writeAsBytes(processedBytes, flush: true);
+
+      return {
+        'path': targetFile.path,
+        'fileName': targetFile.uri.pathSegments.isNotEmpty
+            ? targetFile.uri.pathSegments.last
+            : fileName,
+      };
+    } catch (e) {
+      if (!mounted) return null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Bild konnte nicht geladen werden: $e')),
+      );
+      return null;
+    }
+  }
+
+  Future<void> _pickPhotoForCurrentSlide() async {
+    final selected = await _pickManagedPhotoFile();
+    if (selected == null) return;
+
+    setState(() {
+      currentSlide.photoPath = selected['path'];
+      currentSlide.photoFileName = selected['fileName'];
+    });
+  }
+
+  void _removePhotoFromCurrentSlide() {
+    setState(() {
+      currentSlide.photoPath = null;
+      currentSlide.photoFileName = null;
+    });
+  }
+
+
   void _removeLogo() {
     setState(() {
       logoBase64 = null;
@@ -337,6 +493,22 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         );
         _attachSlideListeners(slide);
         return slide;
+
+      case TemplateType.photo:
+        final slide = _EditableSlide(
+          templateType: TemplateType.photo,
+          titleController: TextEditingController(text: ''),
+          subtitleController: TextEditingController(text: ''),
+          footerController: TextEditingController(text: ''),
+          highlightTitleController: TextEditingController(),
+          highlightPriceController: TextEditingController(),
+          durationController: TextEditingController(text: '10'),
+          itemNameControllers: [],
+          itemPriceControllers: [],
+          itemSoldOutControllers: [],
+        );
+        _attachSlideListeners(slide);
+        return slide;
     }
   }
 
@@ -361,6 +533,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       textScale: slideData.textScale,
       logoMode: _normalizeLogoMode(slideData.logoMode),
       logoOpacity: _normalizeLogoOpacity(slideData.logoOpacity),
+      photoPath: slideData.photoPath,
+      photoFileName: slideData.photoFileName,
+      photoScale: slideData.photoScale,
     );
 
     if ((slide.templateType == TemplateType.menu ||
@@ -423,6 +598,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         return 'Aktion';
       case TemplateType.welcome:
         return 'Willkommen';
+      case TemplateType.photo:
+        return 'Foto';
     }
   }
 
@@ -436,6 +613,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         return Icons.local_offer;
       case TemplateType.welcome:
         return Icons.waving_hand;
+      case TemplateType.photo:
+        return Icons.photo_library_outlined;
     }
   }
 
@@ -449,6 +628,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         return Colors.blue;
       case TemplateType.welcome:
         return Colors.green;
+      case TemplateType.photo:
+        return Colors.purple;
     }
   }
 
@@ -479,6 +660,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               leading: const Icon(Icons.waving_hand),
               title: const Text('Willkommen'),
               onTap: () => Navigator.pop(context, TemplateType.welcome),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Foto'),
+              onTap: () => Navigator.pop(context, TemplateType.photo),
             ),
           ],
         ),
@@ -582,6 +768,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         textScale: slide.textScale,
         logoMode: _normalizeLogoMode(slide.logoMode),
         logoOpacity: _normalizeLogoOpacity(slide.logoOpacity),
+        photoPath: slide.photoPath,
+        photoFileName: slide.photoFileName,
+        photoScale: slide.photoScale,
       );
     });
   }
@@ -605,6 +794,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       slides: _buildSavedSlides(),
       boardStyle: boardStyle,
       fontStyle: fontStyle,
+      orientation: widget.screenOrientation,
       logoBase64: logoBase64,
     );
 
@@ -718,7 +908,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       final int contentVersion = payload['contentVersion'] as int;
 
       final api = ApiService('http://${widget.ip}:8080');
-      final result = await api.sendContent(payload);
+      final assets = _buildUploadableAssets(contentVersion);
+      final result = await api.sendContentPackage(payload, assets);
 
       if (!mounted) return;
 
@@ -780,6 +971,35 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     });
   }
 
+
+  List<UploadableAsset> _buildUploadableAssets(int contentVersion) {
+    final assets = <UploadableAsset>[];
+
+    for (var index = 0; index < slides.length; index++) {
+      final slide = slides[index];
+      if (slide.templateType != TemplateType.photo) continue;
+
+      final photoPath = slide.photoPath?.trim();
+      if (photoPath == null || photoPath.isEmpty) continue;
+
+      final file = File(photoPath);
+      if (!file.existsSync()) continue;
+
+      final assetId =
+          'content_${contentVersion}_slide_${index + 1}_${slide.photoFileName ?? file.uri.pathSegments.last}';
+
+      assets.add(
+        UploadableAsset(
+          assetId: assetId,
+          fileName: slide.photoFileName ?? file.uri.pathSegments.last,
+          file: file,
+        ),
+      );
+    }
+
+    return assets;
+  }
+
   Map<String, dynamic> _buildPayload() {
     final contentVersion = DateTime.now().millisecondsSinceEpoch;
 
@@ -811,6 +1031,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           return name.isNotEmpty || price.isNotEmpty;
         }).toList();
 
+        final fileName = slide.photoFileName?.trim().isNotEmpty == true
+            ? slide.photoFileName!.trim()
+            : null;
+        final imageAssetId = slide.templateType == TemplateType.photo && fileName != null
+            ? 'content_${contentVersion}_slide_${index + 1}_$fileName'
+            : null;
+
         return {
           'slideId': 'slide_${index + 1}',
           'templateType': slide.templateType.name,
@@ -828,6 +1055,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               : slide.highlightPriceController.text.trim(),
           'logoMode': _normalizeLogoMode(slide.logoMode),
           'logoOpacity': _normalizeLogoOpacity(slide.logoOpacity),
+          'imageAssetId': imageAssetId,
+          'imageFileName': fileName,
+          'photoPath': slide.photoPath,
+          'photoScale': slide.photoScale,
         };
       }),
     };
@@ -1004,16 +1235,18 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 'Titel (Slide ${selectedSlideIndex + 1} · ${_templateLabel(currentSlide.templateType)})',
           ),
         ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: currentSlide.subtitleController,
-          decoration: const InputDecoration(labelText: 'Untertitel'),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: currentSlide.footerController,
-          decoration: const InputDecoration(labelText: 'Footer'),
-        ),
+        if (currentSlide.templateType != TemplateType.photo) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: currentSlide.subtitleController,
+            decoration: const InputDecoration(labelText: 'Untertitel'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: currentSlide.footerController,
+            decoration: const InputDecoration(labelText: 'Footer'),
+          ),
+        ],
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: boardStyle,
@@ -1114,7 +1347,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Textgröße für diese Folie: ${(currentSlide.textScale * 100).round()}%',
+              currentSlide.templateType == TemplateType.photo
+                ? 'Titelgröße für diese Folie: ${(currentSlide.textScale * 100).round()}%'
+                : 'Textgröße für diese Folie: ${(currentSlide.textScale * 100).round()}%',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             Slider(
@@ -1305,6 +1540,68 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
+  Widget _buildPhotoFields() {
+    final path = currentSlide.photoPath?.trim();
+    final file = (path != null && path.isNotEmpty) ? File(path) : null;
+    final exists = file != null && file.existsSync();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Foto',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickPhotoForCurrentSlide,
+                  icon: const Icon(Icons.add_a_photo_outlined),
+                  label: Text(exists ? 'Foto ersetzen' : 'Foto auswählen'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (exists)
+                OutlinedButton.icon(
+                  onPressed: _removePhotoFromCurrentSlide,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Entfernen'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            exists
+                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Ohne Titel bleibt die Position wie bisher, mit Titel rutscht das Bild etwas nach unten.'
+                : 'Das Foto bleibt mit sichtbarem Tafelrand eingebettet und füllt den Screen bewusst nicht komplett aus.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Fotogröße: ${(currentSlide.photoScale * 100).round()}%',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          Slider(
+            value: currentSlide.photoScale,
+            min: 0.8,
+            max: 1.2,
+            divisions: 8,
+            label: '${(currentSlide.photoScale * 100).round()}%',
+            onChanged: (value) {
+              setState(() {
+                currentSlide.photoScale = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWelcomeInfo() {
     return const Padding(
       padding: EdgeInsets.only(top: 24),
@@ -1327,6 +1624,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         return _buildPromoFields();
       case TemplateType.welcome:
         return _buildWelcomeInfo();
+      case TemplateType.photo:
+        return _buildPhotoFields();
     }
   }
 
@@ -1589,6 +1888,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'textScale': currentSlide.textScale,
         'logoMode': currentSlide.logoMode,
         'logoOpacity': currentSlide.logoOpacity,
+        'photoPath': currentSlide.photoPath,
+        'imageFileName': currentSlide.photoFileName,
+        'photoScale': currentSlide.photoScale,
       };
     }
 
@@ -1661,13 +1963,15 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
                       return Stack(
                         children: [
-                          _buildLogoPreviewOverlay(
-                            isPortrait: isPortrait,
-                            width: box.maxWidth,
-                            height: box.maxHeight,
-                            logoMode: _normalizeLogoMode(previewSlide['logoMode']?.toString()),
-                            logoOpacity: _normalizeLogoOpacity(previewSlide['logoOpacity']),
-                          ),
+                          if (!(previewSlide['templateType']?.toString() == 'photo' &&
+                              (previewSlide['title']?.toString().trim().isNotEmpty ?? false)))
+                            _buildLogoPreviewOverlay(
+                              isPortrait: isPortrait,
+                              width: box.maxWidth,
+                              height: box.maxHeight,
+                              logoMode: _normalizeLogoMode(previewSlide['logoMode']?.toString()),
+                              logoOpacity: _normalizeLogoOpacity(previewSlide['logoOpacity']),
+                            ),
                           Padding(
                             padding: usesHeadlinePreview
                                 ? EdgeInsets.symmetric(
@@ -1736,6 +2040,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         return _buildPromoPreviewFromPayload(previewSlide);
       case 'welcome':
         return _buildWelcomePreviewFromPayload(previewSlide);
+      case 'photo':
+        return _buildPhotoPreviewFromPayload(previewSlide);
       default:
         return const SizedBox.shrink();
     }
@@ -1801,6 +2107,97 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
+
+  Widget _buildPhotoFramedPreview({
+    required bool isPortrait,
+    required String title,
+    required double titleScale,
+    required double photoScale,
+    required Widget child,
+  }) {
+    final hasTitle = title.trim().isNotEmpty;
+    final baseWidth = isPortrait ? 0.82 : 0.86;
+    final baseHeight = isPortrait ? 0.74 : 0.76;
+    final widthFactor = (baseWidth * photoScale).clamp(0.70, 0.96);
+    final heightFactor = ((hasTitle ? baseHeight - 0.06 : baseHeight) * photoScale)
+        .clamp(0.58, hasTitle ? 0.78 : 0.86);
+
+    return Column(
+      children: [
+        if (hasTitle) ...[
+          SizedBox(height: isPortrait ? 8 : 4),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              title.trim(),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _getTitleStyle(fontSize: isPortrait ? 22 : 18),
+            ),
+          ),
+        ],
+        Expanded(
+          child: Center(
+            child: FractionallySizedBox(
+              widthFactor: widthFactor,
+              heightFactor: heightFactor,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: const Color(0x55F2E9DC),
+                    width: 1.2,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhotoPreviewFromPayload(Map<String, dynamic> slide) {
+    final path = slide['photoPath']?.toString().trim();
+    final file = (path != null && path.isNotEmpty) ? File(path) : null;
+    final exists = file != null && file.existsSync();
+    final isPortrait = _isPortraitPreview();
+    final title = slide['title']?.toString() ?? '';
+    final photoScaleValue = slide['photoScale'];
+    final photoScale = photoScaleValue is num
+        ? photoScaleValue.toDouble().clamp(0.8, 1.2)
+        : (double.tryParse(photoScaleValue?.toString() ?? '') ?? 1.0)
+            .clamp(0.8, 1.2);
+
+    return _buildPhotoFramedPreview(
+      isPortrait: isPortrait,
+      title: title,
+      titleScale: currentSlide.textScale,
+      photoScale: photoScale,
+      child: exists
+          ? Image.file(
+              file,
+              fit: BoxFit.cover,
+            )
+          : Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'Kein Foto ausgewählt',
+                  textAlign: TextAlign.center,
+                  style: _getBodyStyle(fontSize: isPortrait ? 22 : 18),
+                ),
+              ),
+            ),
+    );
+  }
+
   @override
   void dispose() {
     libraryNameController.dispose();
@@ -1824,6 +2221,51 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       appBar: AppBar(
         title: Text(_screenTitle()),
       ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 12,
+                offset: Offset(0, -3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: saveContentLocally,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(54),
+                  ),
+                  child: const Text('Speichern'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : sendContent,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(54),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('An Screen senden'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1842,30 +2284,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ),
             const SizedBox(height: 12),
             _buildPreviewCard(),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: saveContentLocally,
-                    child: const Text('Speichern'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : sendContent,
-                    child: isLoading
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('An Screen senden'),
-                  ),
-                ),
-              ],
-            ),
+            const SizedBox(height: 120),
             if (errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(top: 20),

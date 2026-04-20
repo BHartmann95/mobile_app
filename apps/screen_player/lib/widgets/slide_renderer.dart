@@ -3,6 +3,7 @@ import 'package:shared_models/shared_models.dart';
 
 import '../widgets/headline_board_widget.dart';
 import '../widgets/menu_board_widget.dart';
+import '../widgets/photo_board_widget.dart';
 
 class SlideRenderer extends StatelessWidget {
   final SlideModel slide;
@@ -38,13 +39,30 @@ class SlideRenderer extends StatelessWidget {
     return 'chalk';
   }
 
+  double _slideTextScale() {
+    try {
+      final dynamic dynamicSlide = slide;
+      final dynamic value = dynamicSlide.textScale;
+      double resolved = 1.0;
+      if (value is num) {
+        resolved = value.toDouble();
+      } else if (value is String) {
+        resolved = double.tryParse(value) ?? 1.0;
+      }
+      if (resolved.isNaN || resolved.isInfinite) return 1.0;
+      return resolved.clamp(0.8, 1.25).toDouble();
+    } catch (_) {
+      return 1.0;
+    }
+  }
+
   TextStyle _titleStyle(double baseFontSize) {
     switch (_fontMode()) {
       case 'chalk':
         return TextStyle(
           fontFamily: 'Gobsmacked',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
-          fontSize: baseFontSize,
+          fontSize: baseFontSize * _slideTextScale(),
           color: const Color(0xFFF2E9DC),
           height: 1.0,
         );
@@ -52,7 +70,7 @@ class SlideRenderer extends StatelessWidget {
         return TextStyle(
           fontFamily: 'Roboto',
           fontFamilyFallback: const ['Noto Sans', 'Arial'],
-          fontSize: baseFontSize,
+          fontSize: baseFontSize * _slideTextScale(),
           color: const Color(0xFFF2E9DC),
           height: 1.0,
           fontWeight: FontWeight.w700,
@@ -66,7 +84,7 @@ class SlideRenderer extends StatelessWidget {
         return TextStyle(
           fontFamily: 'Gobsmacked',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
-          fontSize: baseFontSize,
+          fontSize: baseFontSize * _slideTextScale(),
           color: const Color(0xFFF2E9DC),
           height: 1.12,
         );
@@ -74,7 +92,7 @@ class SlideRenderer extends StatelessWidget {
         return TextStyle(
           fontFamily: 'Roboto',
           fontFamilyFallback: const ['Noto Sans', 'Arial'],
-          fontSize: baseFontSize,
+          fontSize: baseFontSize * _slideTextScale(),
           color: const Color(0xFFF2E9DC),
           height: 1.18,
           fontWeight: FontWeight.w500,
@@ -88,7 +106,7 @@ class SlideRenderer extends StatelessWidget {
         return TextStyle(
           fontFamily: 'Gobsmacked',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
-          fontSize: baseFontSize,
+          fontSize: baseFontSize * _slideTextScale(),
           color: const Color(0xFFF2E9DC),
           height: 1.0,
         );
@@ -96,7 +114,7 @@ class SlideRenderer extends StatelessWidget {
         return TextStyle(
           fontFamily: 'Roboto',
           fontFamilyFallback: const ['Noto Sans', 'Arial'],
-          fontSize: baseFontSize,
+          fontSize: baseFontSize * _slideTextScale(),
           color: const Color(0xFFF2E9DC),
           height: 1.0,
           fontWeight: FontWeight.w700,
@@ -214,6 +232,50 @@ class SlideRenderer extends StatelessWidget {
     );
   }
 
+  Widget _buildPhoto(BuildContext context) {
+    final isPortrait = _isPortrait(context);
+    final dynamic dynamicSlide = slide;
+
+    String? localPath;
+    try {
+      final value = dynamicSlide.imagePath;
+      localPath = value?.toString();
+    } catch (_) {}
+
+    if (localPath == null || localPath.trim().isEmpty) {
+      try {
+        final value = dynamicSlide.photoPath;
+        localPath = value?.toString();
+      } catch (_) {}
+    }
+
+    final file = (localPath != null && localPath.trim().isNotEmpty)
+        ? File(localPath.trim())
+        : null;
+
+    return Container(
+      color: _parseBoardColor(slide.backgroundValue),
+      width: double.infinity,
+      height: double.infinity,
+      child: PhotoBoardWidget(
+        title: slide.title,
+        isPortrait: isPortrait,
+        titleStyleBuilder: _titleStyle,
+        imageChild: file != null && file.existsSync()
+            ? Image.file(
+                file,
+                fit: BoxFit.cover,
+              )
+            : Center(
+                child: Text(
+                  'Kein Bild',
+                  style: _bodyStyle(isPortrait ? 26 : 20),
+                ),
+              ),
+      ),
+    );
+  }
+
   Widget _buildFallback(BuildContext context) {
     return Container(
       color: Colors.red.shade900,
@@ -244,6 +306,8 @@ class SlideRenderer extends StatelessWidget {
         return _buildPromo(context);
       case 'welcome':
         return _buildWelcome(context);
+      case 'photo':
+        return _buildPhoto(context);
       default:
         return _buildFallback(context);
     }

@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'widgets/headline_board_widget.dart';
 import 'widgets/menu_board_widget.dart';
+import 'widgets/photo_board_widget.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +69,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
 
   PlayerAppState appState = PlayerAppState.initializing;
 
+  String appVersion = '';
   String? errorMessage;
   String? deviceId;
   String? screenName;
@@ -88,12 +91,25 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     WidgetsBinding.instance.addObserver(this);
     _initializeApp();
     _refreshFullscreenSoon();
+    _loadAppVersion();
   }
 
-  Future<void> _refreshFullscreenSoon() async {
+    Future<void> _refreshFullscreenSoon() async {
     await Future.delayed(const Duration(milliseconds: 150));
     if (!mounted) return;
     await _configureFullscreen();
+  }
+
+    double _getSlidePhotoScale(Map<String, dynamic>? slide) {
+    final value = slide?['photoScale'];
+    double resolved = 1.0;
+    if (value is num) {
+      resolved = value.toDouble();
+    } else if (value is String) {
+      resolved = double.tryParse(value) ?? 1.0;
+    }
+    if (resolved.isNaN || resolved.isInfinite) return 1.0;
+    return resolved.clamp(0.8, 1.25).toDouble();
   }
 
   @override
@@ -102,6 +118,18 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
       _refreshFullscreenSoon();
     }
   }
+
+  Future<void> _loadAppVersion() async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() {
+      appVersion = info.version;
+    });
+  } catch (_) {
+    appVersion = '';
+  }
+}
 
   Future<void> _initializeApp() async {
     try {
@@ -288,6 +316,16 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
           return;
         }
 
+        if (request.method == 'GET' && path == '/asset') {
+          await _handleGetAsset(request);
+          return;
+        }
+
+        if (request.method == 'POST' && path == '/asset') {
+          await _handlePostAssetUpload(request);
+          return;
+        }
+
         if (request.method == 'POST' && path == '/content') {
           await _handlePostContent(request);
           return;
@@ -341,6 +379,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         'pair': '/pair',
         'unpair': '/unpair',
         'content': '/content',
+        'asset': '/asset',
         'setName': '/set-name',
       },
       'hasContent': contentPackage != null,
@@ -498,6 +537,110 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     await request.response.close();
   }
 
+  Future<void> _handleGetAsset(HttpRequest request) async {
+    if (!paired) {
+      request.response.statusCode = HttpStatus.forbidden;
+      await request.response.close();
+      return;
+    }
+
+    final assetId = request.uri.queryParameters['assetId']?.trim();
+    if (assetId == null || assetId.isEmpty) {
+      request.response.statusCode = HttpStatus.badRequest;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'assetId fehlt',
+      }));
+      await request.response.close();
+      return;
+    }
+
+    String fallbackFileName = 'image.jpg';
+    final slides = (contentPackage?['slides'] as List?) ?? const [];
+    for (final rawSlide in slides.whereType<Map>()) {
+      final slide = Map<String, dynamic>.from(rawSlide);
+      if (slide['imageAssetId']?.toString().trim() == assetId) {
+        fallbackFileName = slide['imageFileName']?.toString().trim().isNotEmpty == true
+            ? slide['imageFileName'].toString().trim()
+            : 'image.jpg';
+        break;
+      }
+    }
+
+    final file = await _assetFileForId(assetId, fallbackFileName: fallbackFileName);
+    if (!await file.exists()) {
+      request.response.statusCode = HttpStatus.notFound;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'Asset nicht gefunden',
+      }));
+      await request.response.close();
+      return;
+    }
+
+    request.response.statusCode = HttpStatus.ok;
+    await request.response.addStream(file.openRead());
+    await request.response.close();
+  }
+
+  Future<void> _handlePostAssetUpload(HttpRequest request) async {
+    if (!paired) {
+      request.response.statusCode = HttpStatus.forbidden;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'Gerät ist nicht gekoppelt',
+      }));
+      await request.response.close();
+      return;
+    }
+
+    final assetId = request.headers.value('X-Asset-Id')?.trim();
+    final fileName = request.headers.value('X-File-Name')?.trim() ?? 'image.jpg';
+
+    if (assetId == null || assetId.isEmpty) {
+      request.response.statusCode = HttpStatus.badRequest;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'X-Asset-Id fehlt',
+      }));
+      await request.response.close();
+      return;
+    }
+
+    final bytes = await request.fold<List<int>>(<int>[], (buffer, data) {
+      buffer.addAll(data);
+      return buffer;
+    });
+
+    if (bytes.isEmpty) {
+      request.response.statusCode = HttpStatus.badRequest;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode({
+        'success': false,
+        'error': 'Asset ist leer',
+      }));
+      await request.response.close();
+      return;
+    }
+
+    final file = await _assetFileForId(assetId, fallbackFileName: fileName);
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(jsonEncode({
+      'success': true,
+      'assetId': assetId,
+      'fileName': file.uri.pathSegments.isNotEmpty ? file.uri.pathSegments.last : fileName,
+    }));
+    await request.response.close();
+  }
+
   Future<void> _handlePostSetName(HttpRequest request) async {
     if (!paired) {
       request.response.statusCode = HttpStatus.forbidden;
@@ -591,7 +734,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
       return;
     }
 
-    final validationError = _validateContentPackage(decoded);
+    final validationError = await _validateContentPackage(decoded);
     if (validationError != null) {
       request.response.statusCode = HttpStatus.badRequest;
       request.response.headers.contentType = ContentType.json;
@@ -623,7 +766,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     await request.response.close();
   }
 
-  String? _validateContentPackage(Map<String, dynamic> data) {
+  Future<String?> _validateContentPackage(Map<String, dynamic> data) async {
     final slides = data['slides'];
 
     if (slides is! List) {
@@ -641,9 +784,24 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         return 'slide an Position $i ist kein Objekt';
       }
 
+      final templateType = slide['templateType']?.toString().trim().toLowerCase() ?? 'menu';
       final title = slide['title']?.toString();
-      if (title == null || title.trim().isEmpty) {
+      if (templateType != 'photo' && (title == null || title.trim().isEmpty)) {
         return 'slide an Position $i hat keinen title';
+      }
+
+      if (templateType == 'photo') {
+        final assetId = slide['imageAssetId']?.toString().trim();
+        if (assetId == null || assetId.isEmpty) {
+          return 'Foto-Slide an Position $i hat kein Bild';
+        }
+        final assetFile = await _assetFileForId(
+          assetId,
+          fallbackFileName: slide['imageFileName']?.toString() ?? 'image.jpg',
+        );
+        if (!await assetFile.exists()) {
+          return 'Bilddatei für Foto-Slide an Position $i fehlt';
+        }
       }
 
       final duration = slide['durationSeconds'];
@@ -675,6 +833,67 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     return File('${dir.path}/content_package.json');
   }
 
+  Future<Directory> _getAssetsDirectory() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final assetsDir = Directory('${dir.path}/content_assets');
+    if (!await assetsDir.exists()) {
+      await assetsDir.create(recursive: true);
+    }
+    return assetsDir;
+  }
+
+  String _sanitizeFileName(String raw) {
+    final cleaned = raw.replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+    return cleaned.isEmpty ? 'image.jpg' : cleaned;
+  }
+
+  Future<File> _assetFileForId(String assetId, {
+    required String fallbackFileName,
+  }) async {
+    final assetsDir = await _getAssetsDirectory();
+    final safeAssetId = _sanitizeFileName(assetId);
+    final safeFileName = _sanitizeFileName(fallbackFileName);
+    final extension = safeFileName.contains('.')
+        ? safeFileName.substring(safeFileName.lastIndexOf('.'))
+        : '.jpg';
+    return File('${assetsDir.path}/${safeAssetId}$extension');
+  }
+
+  Set<String> _referencedAssetKeys(Map<String, dynamic>? package) {
+    if (package == null) return <String>{};
+    final slides = package['slides'] as List?;
+    if (slides == null) return <String>{};
+
+    final keys = <String>{};
+    for (final rawSlide in slides.whereType<Map>()) {
+      final slide = Map<String, dynamic>.from(rawSlide);
+      final assetId = slide['imageAssetId']?.toString().trim();
+      final fileName = slide['imageFileName']?.toString().trim() ?? 'image.jpg';
+      if (assetId == null || assetId.isEmpty) continue;
+      final safeAssetId = _sanitizeFileName(assetId);
+      final safeFileName = _sanitizeFileName(fileName);
+      final extension = safeFileName.contains('.')
+          ? safeFileName.substring(safeFileName.lastIndexOf('.'))
+          : '.jpg';
+      keys.add('$safeAssetId$extension');
+    }
+    return keys;
+  }
+
+  Future<void> _pruneUnusedAssets(Map<String, dynamic>? package) async {
+    final assetsDir = await _getAssetsDirectory();
+    if (!await assetsDir.exists()) return;
+
+    final keep = _referencedAssetKeys(package);
+    await for (final entity in assetsDir.list()) {
+      if (entity is! File) continue;
+      final name = entity.uri.pathSegments.isNotEmpty ? entity.uri.pathSegments.last : '';
+      if (!keep.contains(name)) {
+        await entity.delete().catchError((_) {});
+      }
+    }
+  }
+
   Future<Map<String, dynamic>?> _readLocalContentPackage() async {
     try {
       final file = await _getContentFile();
@@ -701,6 +920,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
       const JsonEncoder.withIndent('  ').convert(package),
       flush: true,
     );
+    await _pruneUnusedAssets(package);
   }
 
   int _maxMenuItemsPerSlide() {
@@ -858,6 +1078,10 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     try {
       final bytes = base64Decode(raw);
       final isPortrait = _isPortraitContent();
+      if ((slide?['templateType']?.toString().trim().toLowerCase() == 'photo') &&
+          (slide?['title']?.toString().trim().isNotEmpty ?? false)) {
+        return const SizedBox.shrink();
+      }
       final mode = _getSlideLogoMode(slide);
 
       if (mode == 'topLeft') {
@@ -954,18 +1178,33 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     }
   }
 
+  double _getSlideTextScale(Map<String, dynamic>? slide) {
+    final value = slide?['textScale'];
+    double resolved = 1.0;
+    if (value is num) {
+      resolved = value.toDouble();
+    } else if (value is String) {
+      resolved = double.tryParse(value) ?? 1.0;
+    }
+    if (resolved.isNaN || resolved.isInfinite) {
+      return 1.0;
+    }
+    return resolved.clamp(0.8, 1.25).toDouble();
+  }
+
   TextStyle _getTitleStyle({
     double fontSize = 48,
     Map<String, dynamic>? slide,
   }) {
     final fontStyle = _getFontStyle(slide);
+    final resolvedFontSize = fontSize * _getSlideTextScale(slide);
 
     switch (fontStyle) {
       case 'chalk':
         return TextStyle(
           fontFamily: 'Gobsmacked',
           fontFamilyFallback: const ['Roboto', 'Noto Sans'],
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
           color: const Color(0xFFF2E9DC),
           height: 1.0,
         );
@@ -973,7 +1212,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         return TextStyle(
           fontFamily: 'Roboto',
           fontFamilyFallback: const ['Noto Sans'],
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
           color: const Color(0xFFF2E9DC),
           height: 1.0,
           fontWeight: FontWeight.w700,
@@ -986,13 +1225,14 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     Map<String, dynamic>? slide,
   }) {
     final fontStyle = _getFontStyle(slide);
+    final resolvedFontSize = fontSize * _getSlideTextScale(slide);
 
     switch (fontStyle) {
       case 'chalk':
         return TextStyle(
           fontFamily: 'Gobsmacked',
           fontFamilyFallback: const ['Roboto', 'Noto Sans'],
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
           color: const Color(0xFFF2E9DC),
           height: 1.12,
         );
@@ -1000,7 +1240,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         return TextStyle(
           fontFamily: 'Roboto',
           fontFamilyFallback: const ['Noto Sans'],
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
           color: const Color(0xFFF2E9DC),
           height: 1.12,
           fontWeight: FontWeight.w500,
@@ -1013,13 +1253,14 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     Map<String, dynamic>? slide,
   }) {
     final fontStyle = _getFontStyle(slide);
+    final resolvedFontSize = fontSize * _getSlideTextScale(slide);
 
     switch (fontStyle) {
       case 'chalk':
         return TextStyle(
           fontFamily: 'Gobsmacked',
           fontFamilyFallback: const ['Roboto', 'Noto Sans'],
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
           color: const Color(0xFFF2E9DC),
           height: 1.0,
         );
@@ -1027,7 +1268,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         return TextStyle(
           fontFamily: 'Roboto',
           fontFamilyFallback: const ['Noto Sans'],
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
           color: const Color(0xFFF2E9DC),
           height: 1.0,
           fontWeight: FontWeight.w700,
@@ -1448,12 +1689,34 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
                 bottom: 16,
                 child: Opacity(
                   opacity: 0.35,
-                  child: Text(
-                    'v$contentVersion',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        '©',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'greenbird.fm',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+Text(
+  this.appVersion.trim().isEmpty
+      ? 'Player'
+      : 'Player ${this.appVersion}',
+  style: const TextStyle(
+    fontSize: 14,
+    color: Colors.white,
+  ),
+),
+                    ],
                   ),
                 ),
               ),
@@ -1466,6 +1729,8 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
 
   Widget _buildSlideContent(Map<String, dynamic> slide, String templateType) {
     switch (templateType) {
+      case 'photo':
+        return _buildPhotoSlide(slide);
       case 'promo':
         return _buildPromoSlide(slide);
       case 'welcome':
@@ -1528,6 +1793,45 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         priceStyleBuilder: (base) =>
             _getPriceStyle(fontSize: base, slide: slide),
       ),
+    );
+  }
+
+  Widget _buildPhotoSlide(Map<String, dynamic> slide) {
+    return FutureBuilder<File>(
+      future: _assetFileForId(
+        slide['imageAssetId']?.toString().trim() ?? '',
+        fallbackFileName: slide['imageFileName']?.toString() ?? 'image.jpg',
+      ),
+      builder: (context, snapshot) {
+        final file = snapshot.data;
+        final exists = file != null && file.existsSync();
+
+        return PhotoBoardWidget(
+          title: slide['title']?.toString() ?? '',
+          isPortrait: _isPortraitContent(),
+          photoScale: _getSlidePhotoScale(slide),
+          titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
+          imageChild: exists
+              ? Image.file(
+                  file,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.high,
+                )
+              : Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Bild nicht gefunden',
+                      textAlign: TextAlign.center,
+                      style: _getBodyStyle(
+                        fontSize: _isPortraitContent() ? 34 : 24,
+                        slide: slide,
+                      ),
+                    ),
+                  ),
+                ),
+        );
+      },
     );
   }
 

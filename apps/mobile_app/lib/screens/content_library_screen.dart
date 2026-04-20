@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/saved_content.dart';
 import '../models/screen.dart';
@@ -13,6 +14,7 @@ enum ContentLibraryFilter {
   drinks,
   promo,
   welcome,
+  photo,
 }
 
 enum ContentOrientationFilter {
@@ -107,6 +109,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
         ContentLibraryFilter.drinks => primaryType == TemplateType.drinks,
         ContentLibraryFilter.promo => primaryType == TemplateType.promo,
         ContentLibraryFilter.welcome => primaryType == TemplateType.welcome,
+        ContentLibraryFilter.photo => primaryType == TemplateType.photo,
       };
 
       final matchesOrientationFilter = switch (selectedOrientationFilter) {
@@ -306,11 +309,13 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     );
   }
 
-  Map<String, dynamic> _buildPayloadFromSavedContent(SavedContent content) {
+  ({Map<String, dynamic> payload, List<UploadableAsset> assets})
+      _buildPackageFromSavedContent(SavedContent content) {
     final contentVersion = DateTime.now().millisecondsSinceEpoch;
     final orientation = _normalizedContentOrientation(content);
+    final assets = <UploadableAsset>[];
 
-    return {
+    final payload = {
       'contentVersion': contentVersion,
       'contentName': content.name,
       'orientation': orientation == 'unknown' ? widget.screenOrientation : orientation,
@@ -319,6 +324,28 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
       'logoBase64': content.logoBase64,
       'slides': List.generate(content.slides.length, (index) {
         final slide = content.slides[index];
+        String? imageAssetId;
+        String? imageFileName;
+
+        if (slide.templateType == TemplateType.photo) {
+          final photoPath = slide.photoPath?.trim();
+          if (photoPath != null && photoPath.isNotEmpty) {
+            final file = File(photoPath);
+            if (file.existsSync()) {
+              imageFileName = slide.photoFileName?.trim().isNotEmpty == true
+                  ? slide.photoFileName!.trim()
+                  : file.uri.pathSegments.last;
+              imageAssetId = 'content_${contentVersion}_slide_${index + 1}_$imageFileName';
+              assets.add(
+                UploadableAsset(
+                  assetId: imageAssetId,
+                  fileName: imageFileName,
+                  file: file,
+                ),
+              );
+            }
+          }
+        }
 
         return {
           'slideId': 'slide_${(index + 1).toString().padLeft(3, '0')}',
@@ -341,9 +368,15 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
           'highlightPrice': slide.highlightPrice,
           'logoMode': slide.logoMode,
           'logoOpacity': slide.logoOpacity,
+          'imageAssetId': imageAssetId,
+          'imageFileName': imageFileName,
+          'photoPath': slide.photoPath,
+          'photoScale': slide.photoScale,
         };
       }),
     };
+
+    return (payload: payload, assets: assets);
   }
 
   Future<List<ScreenDevice>> _loadAvailableScreens() async {
@@ -464,9 +497,10 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
             continue;
           }
 
-          final payload = _buildPayloadFromSavedContent(content);
+          final package = _buildPackageFromSavedContent(content);
+          final payload = package.payload;
           final int contentVersion = payload['contentVersion'] as int;
-          final result = await api.sendContent(payload);
+          final result = await api.sendContentPackage(payload, package.assets);
 
           if (result.success) {
             successCount++;
@@ -525,6 +559,8 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
         return 'Aktion';
       case TemplateType.welcome:
         return 'Willkommen';
+      case TemplateType.photo:
+        return 'Foto';
     }
   }
 
@@ -540,6 +576,8 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
         return 'Aktion';
       case ContentLibraryFilter.welcome:
         return 'Willkommen';
+      case ContentLibraryFilter.photo:
+        return 'Foto';
     }
   }
 

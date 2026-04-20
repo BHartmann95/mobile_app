@@ -3,6 +3,7 @@ enum TemplateType {
   drinks,
   promo,
   welcome,
+  photo,
 }
 
 class Template {
@@ -50,6 +51,8 @@ class Template {
         return TemplateType.promo;
       case 'welcome':
         return TemplateType.welcome;
+      case 'photo':
+        return TemplateType.photo;
       default:
         return TemplateType.menu;
     }
