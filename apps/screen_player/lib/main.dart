@@ -1652,81 +1652,92 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     final templateType = slide['templateType']?.toString() ?? 'menu';
 
     return Scaffold(
-      body: GestureDetector(
-        onLongPress: () => _resetDevice(rotateCode: true, preserveContent: true),
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          color: _getBoardColor(),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: _buildLogoOverlay(slide),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 80,
-                  vertical: 60,
-                ),
-                child: _buildSlideContent(slide, templateType),
-              ),
-              Positioned(
-                left: 16,
-                bottom: 16,
-                child: Opacity(
-                  opacity: 0.35,
-                  child: Text(
-                    screenName ?? 'Unbenannter Screen',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.white,
+  body: GestureDetector(
+    onLongPress: () => _resetDevice(rotateCode: true, preserveContent: true),
+    child: Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: _getBoardColor(),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: _buildLogoOverlay(slide),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 80,
+              vertical: 60,
+            ),
+            child: _buildSlideContent(slide, templateType),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: Opacity(
+              opacity: 0.35,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 200,
+                    child: Text(
+                      screenName ?? 'Unbenannter Screen',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                right: 16,
-                bottom: 16,
-                child: Opacity(
-                  opacity: 0.35,
-                  child: Row(
-                    children: [
-                      const Text(
-                        '©',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
+                  Expanded(
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Text(
+                            '©',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'greenbird.fm',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'greenbird.fm',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-Text(
-  this.appVersion.trim().isEmpty
-      ? 'Player'
-      : 'Player ${this.appVersion}',
-  style: const TextStyle(
-    fontSize: 14,
-    color: Colors.white,
-  ),
-),
-                    ],
+                    ),
                   ),
-                ),
+                  SizedBox(
+                    width: 200,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        this.appVersion.trim().isEmpty
+                            ? 'Player'
+                            : 'Player ${this.appVersion}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
-    );
-  }
+    ),
+  ),
+);
 
+  }
   Widget _buildSlideContent(Map<String, dynamic> slide, String templateType) {
     switch (templateType) {
       case 'photo':
@@ -1909,5 +1920,6 @@ Text(
       priceStyleBuilder: (base) =>
           _getPriceStyle(fontSize: base, slide: slide),
     );
+  
   }
 }

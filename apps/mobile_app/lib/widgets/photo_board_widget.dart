@@ -51,7 +51,7 @@ class PhotoBoardWidget extends StatelessWidget {
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.visible,
-                  style: titleStyleBuilder(isPortrait ? 44 : 34),
+                  style: titleStyleBuilder(isPortrait ? 56 : 44),
                 ),
               ),
             ),
