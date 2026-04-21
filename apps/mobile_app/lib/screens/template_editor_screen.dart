@@ -1651,7 +1651,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
-          fontFamily: 'Gobsmacked',
+          fontFamily: 'broken',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
           fontSize: resolvedSize,
           color: const Color(0xFFF2E9DC),
@@ -1676,7 +1676,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
-          fontFamily: 'Gobsmacked',
+          fontFamily: 'broken',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
           fontSize: resolvedSize,
           color: const Color(0xFFF2E9DC),
@@ -1701,7 +1701,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
-          fontFamily: 'Gobsmacked',
+          fontFamily: 'broken',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
           fontSize: resolvedSize,
           color: const Color(0xFFF2E9DC),
@@ -1749,7 +1749,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
-          fontFamily: 'Gobsmacked',
+          fontFamily: 'broken',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
           fontSize: resolvedSize,
           color: const Color(0xFFF2E9DC),
@@ -1775,7 +1775,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
-          fontFamily: 'Gobsmacked',
+          fontFamily: 'broken',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
           fontSize: resolvedSize,
           color: const Color(0xFFF2E9DC),
@@ -1801,7 +1801,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
-          fontFamily: 'Gobsmacked',
+          fontFamily: 'broken',
           fontFamilyFallback: const ['Roboto', 'Noto Sans', 'Arial'],
           fontSize: resolvedSize,
           color: const Color(0xFFF2E9DC),

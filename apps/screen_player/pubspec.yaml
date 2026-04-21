@@ -35,28 +35,16 @@ flutter:
     - assets/images/splash/player_logo_center.png
 
   fonts:
-    - family: Gobsmacked
+    - family: broken
       fonts:
-        - asset: assets/fonts/Gobsmacked.otf
-
-    - family: ConteScriptReduced
-      fonts:
-        - asset: assets/fonts/ConteScriptReduced.ttf
-
-    - family: KillingLoneliness
-      fonts:
-        - asset: assets/fonts/KillingLoneliness.ttf
-
-    - family: Tafelschrift
-      fonts:
-        - asset: assets/fonts/Tafelschrift.ttf
+        - asset: assets/fonts/broken.ttf
+      
 
 flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon_player.png"
 
-# 👉 NATIVE SPLASH (bewusst simpel!)
 flutter_native_splash:
   color: "#000000"
   image: assets/images/splash/player_logo_center.png

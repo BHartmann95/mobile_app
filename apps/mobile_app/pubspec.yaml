@@ -35,6 +35,11 @@ flutter:
     - assets/images/splash/studio_splash_landscape.png
     - assets/images/splash/studio_logo_center.png
 
+  fonts:
+    - family: broken
+      fonts:
+        - asset: assets/fonts/broken.ttf
+
 flutter_launcher_icons:
   android: true
   ios: true
