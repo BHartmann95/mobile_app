@@ -1,5 +1,5 @@
 name: screen_player
-description: Digital Chalkboard Screen Player
+description: Digital Chalkboard Screen Player (TafelFix Player)
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -22,9 +22,17 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/icon_player.png
+    - assets/images/splash/player_splash_portrait.png
+    - assets/images/splash/player_splash_landscape.png
+    - assets/images/splash/player_logo_center.png
 
   fonts:
     - family: Gobsmacked
@@ -42,3 +50,20 @@ flutter:
     - family: Tafelschrift
       fonts:
         - asset: assets/fonts/Tafelschrift.ttf
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon_player.png"
+
+# 👉 NATIVE SPLASH (bewusst simpel!)
+flutter_native_splash:
+  color: "#000000"
+  image: assets/images/splash/player_logo_center.png
+  android: true
+  ios: false
+  web: false
+  fullscreen: true
+  android_12:
+    color: "#000000"
+    image: assets/images/splash/player_logo_center.png

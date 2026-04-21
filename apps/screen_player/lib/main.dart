@@ -13,6 +13,7 @@ import 'widgets/headline_board_widget.dart';
 import 'widgets/menu_board_widget.dart';
 import 'widgets/photo_board_widget.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'branded_splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +46,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ScreenPlayerPage(),
+      home: BrandedSplashScreen(
+  portraitImageAssetPath: 'assets/images/splash/player_splash_portrait.png',
+  landscapeImageAssetPath: 'assets/images/splash/player_splash_landscape.png',
+  nextScreen: ScreenPlayerPage(),
+),
     );
   }
 }

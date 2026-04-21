@@ -1,25 +1,52 @@
-name: digitale_kreidetafel
+name: mobile_app
+description: TafelFix Studio
+publish_to: 'none'
 
-description: Digitale Kreidetafel
+version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
+
+  cupertino_icons: ^1.0.6
+
   http: ^1.2.1
+  path_provider: ^2.1.2
   shared_preferences: ^2.2.3
-  mobile_scanner: ^5.1.1
-  image_picker: ^1.1.2
-  image: ^4.1.7
-  path_provider: ^2.1.4
+  mobile_scanner: ^4.0.1
+  image_picker: ^1.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
 
-  fonts:
-    - family: Gobsmacked
-      fonts:
-        - asset: assets/fonts/Gobsmacked.otf
+  assets:
+    - assets/icon_studio.png
+    - assets/images/splash/studio_splash_portrait.png
+    - assets/images/splash/studio_splash_landscape.png
+    - assets/images/splash/studio_logo_center.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon_studio.png"
+
+flutter_native_splash:
+  color: "#000000"
+  image: assets/images/splash/studio_logo_center.png
+  android: true
+  ios: true
+  web: false
+  fullscreen: true
+  android_12:
+    color: "#000000"
+    image: assets/images/splash/studio_logo_center.png
