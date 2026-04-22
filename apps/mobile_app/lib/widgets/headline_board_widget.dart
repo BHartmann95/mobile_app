@@ -13,6 +13,8 @@ class HeadlineBoardWidget extends StatelessWidget {
   final HeadlineTextStyleBuilder titleStyleBuilder;
   final HeadlineTextStyleBuilder bodyStyleBuilder;
   final HeadlineTextStyleBuilder priceStyleBuilder;
+  final double contentWidthFactor;
+  final double horizontalShift;
 
   const HeadlineBoardWidget({
     super.key,
@@ -26,6 +28,8 @@ class HeadlineBoardWidget extends StatelessWidget {
     required this.titleStyleBuilder,
     required this.bodyStyleBuilder,
     required this.priceStyleBuilder,
+    this.contentWidthFactor = 1.0,
+    this.horizontalShift = 0.0,
   });
 
   Widget _textBlock(

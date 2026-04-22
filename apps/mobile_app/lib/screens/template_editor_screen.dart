@@ -15,6 +15,7 @@ import '../services/content_storage_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/headline_board_widget.dart';
 import '../widgets/menu_board_widget.dart';
+import '../widgets/photo_board_widget.dart';
 
 class TemplateEditorScreen extends StatefulWidget {
   final String ip;
@@ -530,12 +531,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           slideData.items.map((e) => TextEditingController(text: e.price)).toList(),
       itemSoldOutControllers:
           slideData.items.map((e) => ValueNotifier<bool>(e.soldOut)).toList(),
-      textScale: slideData.textScale,
+      textScale: 1.0,
       logoMode: _normalizeLogoMode(slideData.logoMode),
       logoOpacity: _normalizeLogoOpacity(slideData.logoOpacity),
       photoPath: slideData.photoPath,
       photoFileName: slideData.photoFileName,
-      photoScale: slideData.photoScale,
+      photoScale: 1.0,
     );
 
     if ((slide.templateType == TemplateType.menu ||
@@ -765,12 +766,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           );
         }).where((e) => e.name.isNotEmpty || e.price.isNotEmpty).toList(),
         durationSeconds: _durationValue(slide),
-        textScale: slide.textScale,
+        textScale: 1.0,
         logoMode: _normalizeLogoMode(slide.logoMode),
         logoOpacity: _normalizeLogoOpacity(slide.logoOpacity),
         photoPath: slide.photoPath,
         photoFileName: slide.photoFileName,
-        photoScale: slide.photoScale,
+        photoScale: 1.0,
       );
     });
   }
@@ -1042,7 +1043,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           'slideId': 'slide_${index + 1}',
           'templateType': slide.templateType.name,
           'durationSeconds': _durationValue(slide),
-          'textScale': slide.textScale,
+          'textScale': 1.0,
           'title': slide.titleController.text.trim(),
           'subtitle': slide.subtitleController.text.trim(),
           'items': items,
@@ -1058,7 +1059,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           'imageAssetId': imageAssetId,
           'imageFileName': fileName,
           'photoPath': slide.photoPath,
-          'photoScale': slide.photoScale,
+          'photoScale': 1.0,
         };
       }),
     };
@@ -1342,30 +1343,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             },
           ),
         ],
-        const SizedBox(height: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              currentSlide.templateType == TemplateType.photo
-                ? 'Titelgröße für diese Folie: ${(currentSlide.textScale * 100).round()}%'
-                : 'Textgröße für diese Folie: ${(currentSlide.textScale * 100).round()}%',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            Slider(
-              value: currentSlide.textScale,
-              min: 0.8,
-              max: 1.25,
-              divisions: 9,
-              label: '${(currentSlide.textScale * 100).round()}%',
-              onChanged: (value) {
-                setState(() {
-                  currentSlide.textScale = value;
-                });
-              },
-            ),
-          ],
-        ),
+
         TextField(
           controller: currentSlide.durationController,
           keyboardType: TextInputType.number,
@@ -1576,26 +1554,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           const SizedBox(height: 12),
           Text(
             exists
-                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Ohne Titel bleibt die Position wie bisher, mit Titel rutscht das Bild etwas nach unten.'
-                : 'Das Foto bleibt mit sichtbarem Tafelrand eingebettet und füllt den Screen bewusst nicht komplett aus.',
+                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Titel und Bildgröße werden automatisch angepasst.'
+                : 'Das Foto bleibt mit sichtbarem Tafelrand eingebettet und wird automatisch passend dargestellt.',
             style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Fotogröße: ${(currentSlide.photoScale * 100).round()}%',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          Slider(
-            value: currentSlide.photoScale,
-            min: 0.8,
-            max: 1.2,
-            divisions: 8,
-            label: '${(currentSlide.photoScale * 100).round()}%',
-            onChanged: (value) {
-              setState(() {
-                currentSlide.photoScale = value;
-              });
-            },
           ),
         ],
       ),
@@ -1647,7 +1608,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   TextStyle _getTitleStyle({
     required double fontSize,
   }) {
-    final resolvedSize = fontSize * currentSlide.textScale;
+    final resolvedSize = fontSize;
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
@@ -1672,7 +1633,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   TextStyle _getBodyStyle({
     required double fontSize,
   }) {
-    final resolvedSize = fontSize * currentSlide.textScale;
+    final resolvedSize = fontSize;
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
@@ -1697,7 +1658,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   TextStyle _getPriceStyle({
     required double fontSize,
   }) {
-    final resolvedSize = fontSize * currentSlide.textScale;
+    final resolvedSize = fontSize;
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
@@ -1725,27 +1686,14 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   double _previewTextScale(Map<String, dynamic> slide) {
-    final rawValue = slide['textScale'];
-
-    double resolved = 1.0;
-    if (rawValue is num) {
-      resolved = rawValue.toDouble();
-    } else if (rawValue is String) {
-      resolved = double.tryParse(rawValue) ?? 1.0;
-    }
-
-    if (resolved.isNaN || resolved.isInfinite) {
-      return 1.0;
-    }
-
-    return resolved.clamp(0.8, 1.25).toDouble();
+    return 1.0;
   }
 
   TextStyle _previewTitleStyleForSlide(
     Map<String, dynamic> slide, {
     required double fontSize,
   }) {
-    final resolvedSize = fontSize * _previewTextScale(slide);
+    final resolvedSize = fontSize;
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
@@ -1771,7 +1719,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     Map<String, dynamic> slide, {
     required double fontSize,
   }) {
-    final resolvedSize = fontSize * _previewTextScale(slide);
+    final resolvedSize = fontSize;
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
@@ -1797,7 +1745,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     Map<String, dynamic> slide, {
     required double fontSize,
   }) {
-    final resolvedSize = fontSize * _previewTextScale(slide);
+    final resolvedSize = fontSize;
     switch (_getPreviewFontMode()) {
       case 'chalk':
         return TextStyle(
@@ -1885,12 +1833,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'highlightTitle': currentSlide.highlightTitleController.text.trim(),
         'highlightPrice': currentSlide.highlightPriceController.text.trim(),
         'items': const <Map<String, dynamic>>[],
-        'textScale': currentSlide.textScale,
+        'textScale': 1.0,
         'logoMode': currentSlide.logoMode,
         'logoOpacity': currentSlide.logoOpacity,
         'photoPath': currentSlide.photoPath,
         'imageFileName': currentSlide.photoFileName,
-        'photoScale': currentSlide.photoScale,
+        'photoScale': 1.0,
       };
     }
 
@@ -1937,8 +1885,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
         final targetWidth = isPortrait
-            ? math.min(availableWidth, 320.0)
-            : math.min(availableWidth, 900.0);
+            ? math.min(availableWidth, 420.0)
+            : math.min(availableWidth, 1100.0);
 
         return Center(
           child: SizedBox(
@@ -1948,77 +1896,45 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  color: _getBoardColor(),
-                  child: LayoutBuilder(
-                    builder: (context, box) {
-                      final previewScale = isPortrait
-                          ? math.min(box.maxWidth / 1080, box.maxHeight / 1920)
-                          : math.min(box.maxWidth / 1920, box.maxHeight / 1080);
+  color: _getBoardColor(),
+  child: Stack(
+    children: [
+      Positioned.fill(
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final usesHeadlinePreview =
+                currentSlide.templateType == TemplateType.promo ||
+                currentSlide.templateType == TemplateType.welcome;
 
-                      final usesHeadlinePreview =
-                          currentSlide.templateType == TemplateType.promo ||
-                          currentSlide.templateType == TemplateType.welcome;
-
-                      final previewSlide = _currentPreviewSlide();
-
-                      return Stack(
-                        children: [
-                          if (!(previewSlide['templateType']?.toString() == 'photo' &&
-                              (previewSlide['title']?.toString().trim().isNotEmpty ?? false)))
-                            _buildLogoPreviewOverlay(
-                              isPortrait: isPortrait,
-                              width: box.maxWidth,
-                              height: box.maxHeight,
-                              logoMode: _normalizeLogoMode(previewSlide['logoMode']?.toString()),
-                              logoOpacity: _normalizeLogoOpacity(previewSlide['logoOpacity']),
-                            ),
-                          Padding(
-                            padding: usesHeadlinePreview
-                                ? EdgeInsets.symmetric(
-                                    horizontal: box.maxWidth * 0.07,
-                                    vertical: box.maxHeight * 0.055,
-                                  )
-                                : EdgeInsets.symmetric(
-                                    horizontal: 80 * previewScale,
-                                    vertical: 60 * previewScale,
-                                  ),
-                            child: _buildPreviewSlideContent(previewScale),
-                          ),
-                          Positioned(
-                            left: 16 * previewScale,
-                            bottom: 16 * previewScale,
-                            child: Opacity(
-                              opacity: 0.35,
-                              child: Text(
-                                widget.screenName,
-                                style: TextStyle(
-                                  fontSize: 14 * previewScale,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            right: 16 * previewScale,
-                            bottom: 16 * previewScale,
-                            child: Opacity(
-                              opacity: 0.35,
-                              child: Text(
-                                (currentSlide.templateType == TemplateType.menu || currentSlide.templateType == TemplateType.drinks) && _currentPreviewPageCountForSelectedSlide() > 1
-                                    ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_currentPreviewPageCountForSelectedSlide()} · ${_durationValue(currentSlide)}s'
-                                    : 'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
-                                style: TextStyle(
-                                  fontSize: 14 * previewScale,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
+            return Padding(
+              padding: usesHeadlinePreview
+                  ? EdgeInsets.symmetric(
+                      horizontal: box.maxWidth * 0.025,
+                      vertical: box.maxHeight * 0.04,
+                    )
+                  : EdgeInsets.symmetric(
+                      horizontal: isPortrait
+                          ? box.maxWidth * 0.035
+                          : box.maxWidth * 0.03,
+                      vertical: isPortrait
+                          ? box.maxHeight * 0.03
+                          : box.maxHeight * 0.035,
+                    ),
+              child: _buildPreviewSlideContent(),
+            );
+          },
+        ),
+      ),
+      _buildLogoPreviewOverlay(
+        isPortrait: isPortrait,
+        width: targetWidth,
+        height: targetWidth * (isPortrait ? 16 / 9 : 9 / 16),
+        logoMode: currentSlide.logoMode,
+        logoOpacity: currentSlide.logoOpacity,
+      ),
+    ],
+  ),
+),
               ),
             ),
           ),
@@ -2027,7 +1943,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildPreviewSlideContent(double scale) {
+  Widget _buildPreviewSlideContent() {
     final previewSlide = _currentPreviewSlide();
     final templateType =
         previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;
@@ -2047,7 +1963,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-  Widget _buildMenuPreviewFromPayload(Map<String, dynamic> slide) {
+
+Widget _buildMenuPreviewFromPayload(Map<String, dynamic> slide) {
     final items = ((slide['items'] as List?) ?? [])
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
@@ -2168,19 +2085,15 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final file = (path != null && path.isNotEmpty) ? File(path) : null;
     final exists = file != null && file.existsSync();
     final isPortrait = _isPortraitPreview();
-    final title = slide['title']?.toString() ?? '';
-    final photoScaleValue = slide['photoScale'];
-    final photoScale = photoScaleValue is num
-        ? photoScaleValue.toDouble().clamp(0.8, 1.2)
-        : (double.tryParse(photoScaleValue?.toString() ?? '') ?? 1.0)
-            .clamp(0.8, 1.2);
 
-    return _buildPhotoFramedPreview(
+    return PhotoBoardWidget(
+      title: slide['title']?.toString() ?? '',
       isPortrait: isPortrait,
-      title: title,
-      titleScale: currentSlide.textScale,
-      photoScale: photoScale,
-      child: exists
+      titleStyleBuilder: (base) => _previewTitleStyleForSlide(
+        slide,
+        fontSize: base,
+      ),
+      imageChild: exists
           ? Image.file(
               file,
               fit: BoxFit.cover,
@@ -2191,7 +2104,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 child: Text(
                   'Kein Foto ausgewählt',
                   textAlign: TextAlign.center,
-                  style: _getBodyStyle(fontSize: isPortrait ? 22 : 18),
+                  style: _previewBodyStyleForSlide(
+                    slide,
+                    fontSize: isPortrait ? 22 : 18,
+                  ),
                 ),
               ),
             ),

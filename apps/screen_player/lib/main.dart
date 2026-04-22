@@ -1184,25 +1184,15 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
   }
 
   double _getSlideTextScale(Map<String, dynamic>? slide) {
-    final value = slide?['textScale'];
-    double resolved = 1.0;
-    if (value is num) {
-      resolved = value.toDouble();
-    } else if (value is String) {
-      resolved = double.tryParse(value) ?? 1.0;
-    }
-    if (resolved.isNaN || resolved.isInfinite) {
-      return 1.0;
-    }
-    return resolved.clamp(0.8, 1.25).toDouble();
-  }
+  return 1.0;
+}
 
   TextStyle _getTitleStyle({
     double fontSize = 48,
     Map<String, dynamic>? slide,
   }) {
     final fontStyle = _getFontStyle(slide);
-    final resolvedFontSize = fontSize * _getSlideTextScale(slide);
+    final resolvedFontSize = fontSize;
 
     switch (fontStyle) {
       case 'chalk':
@@ -1230,7 +1220,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     Map<String, dynamic>? slide,
   }) {
     final fontStyle = _getFontStyle(slide);
-    final resolvedFontSize = fontSize * _getSlideTextScale(slide);
+    final resolvedFontSize = fontSize;
 
     switch (fontStyle) {
       case 'chalk':
@@ -1258,7 +1248,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     Map<String, dynamic>? slide,
   }) {
     final fontStyle = _getFontStyle(slide);
-    final resolvedFontSize = fontSize * _getSlideTextScale(slide);
+    final resolvedFontSize = fontSize;
 
     switch (fontStyle) {
       case 'chalk':

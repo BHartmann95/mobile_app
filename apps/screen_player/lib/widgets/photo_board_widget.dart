@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../layout/slide_layout_engine.dart';
 
 typedef PhotoTitleStyleBuilder = TextStyle Function(double baseFontSize);
 
@@ -18,68 +20,78 @@ class PhotoBoardWidget extends StatelessWidget {
     this.photoScale = 1.0,
   });
 
+  double _layoutScale(BoxConstraints c) {
+  final shortestSide = math.min(c.maxWidth, c.maxHeight);
+  final isPreview = shortestSide < 700;
+
+  final base = isPreview ? 700.0 : 400.0;
+  final scale = shortestSide / base;
+
+  return math.max(0.82, math.min(1.65, scale));
+}
+
   @override
   Widget build(BuildContext context) {
+    final spec = SlideLayoutEngine.photo(
+      isPortrait: isPortrait,
+      title: title,
+    );
+
     final hasTitle = title.trim().isNotEmpty;
 
-    // Titel bewusst unangetastet lassen.
-    // Nur die Bildfläche reagiert stärker auf den Regler.
-    final normalizedScale = photoScale.clamp(0.8, 1.25);
-    final effectiveScale = 1.0 + ((normalizedScale - 1.0) * 1.8);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = _layoutScale(constraints);
+        final titleFont = spec.titleFont * scale;
+        final topGap = spec.topGap * scale;
+        final titleBottomGap = spec.titleBottomGap * scale;
+        final radius = math.max(14.0, 18.0 * scale);
 
-    final widthFactor =
-        ((isPortrait ? 0.90 : 0.92) * effectiveScale).clamp(0.70, 0.98);
-
-    final heightFactor = ((hasTitle
-            ? (isPortrait ? 0.82 : 0.84)
-            : (isPortrait ? 0.86 : 0.88)) * effectiveScale)
-        .clamp(0.58, hasTitle ? 0.92 : 0.96);
-
-    return Column(
-      children: [
-        if (hasTitle) ...[
-          SizedBox(height: isPortrait ? 72 : 40),
-          Padding(
-            padding: EdgeInsets.only(bottom: isPortrait ? 18 : 14),
-            child: SizedBox(
-              width: double.infinity,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
+        return Column(
+          children: [
+            if (hasTitle) ...[
+              SizedBox(height: topGap),
+              Padding(
+                padding: EdgeInsets.only(
+                  left: (isPortrait ? 24 : 40) * scale,
+                  right: (isPortrait ? 24 : 40) * scale,
+                  bottom: titleBottomGap,
+                ),
                 child: Text(
                   title.trim(),
                   textAlign: TextAlign.center,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.visible,
-                  style: titleStyleBuilder(isPortrait ? 56 : 44),
+                  maxLines: spec.titleMaxLines,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyleBuilder(titleFont),
                 ),
               ),
-            ),
-          ),
-        ],
-        Expanded(
-          child: Center(
-            child: FractionallySizedBox(
-              widthFactor: widthFactor,
-              heightFactor: heightFactor,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: const Color(0x55F2E9DC),
-                    width: 1.2,
+            ],
+            Expanded(
+              child: Center(
+                child: FractionallySizedBox(
+                  widthFactor: spec.widthFactor,
+                  heightFactor: spec.heightFactor,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(radius),
+                      border: Border.all(
+                        color: const Color(0x55F2E9DC),
+                        width: math.max(1.0, 1.2 * scale),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(radius),
+                      child: imageChild,
+                    ),
                   ),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: imageChild,
-                ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
