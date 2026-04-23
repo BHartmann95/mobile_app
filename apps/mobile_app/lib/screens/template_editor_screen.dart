@@ -1888,6 +1888,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ? math.min(availableWidth, 420.0)
             : math.min(availableWidth, 1100.0);
 
+        final virtualWidth = isPortrait ? 1080.0 : 1920.0;
+        final virtualHeight = isPortrait ? 1920.0 : 1080.0;
+
         return Center(
           child: SizedBox(
             width: targetWidth,
@@ -1896,45 +1899,81 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
-  color: _getBoardColor(),
-  child: Stack(
-    children: [
-      Positioned.fill(
-        child: LayoutBuilder(
-          builder: (context, box) {
-            final usesHeadlinePreview =
-                currentSlide.templateType == TemplateType.promo ||
-                currentSlide.templateType == TemplateType.welcome;
+                  color: _getBoardColor(),
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: virtualWidth,
+                      height: virtualHeight,
+                      child: Builder(
+                        builder: (context) {
+                          final usesHeadlinePreview =
+                              currentSlide.templateType == TemplateType.promo ||
+                              currentSlide.templateType == TemplateType.welcome;
 
-            return Padding(
-              padding: usesHeadlinePreview
-                  ? EdgeInsets.symmetric(
-                      horizontal: box.maxWidth * 0.025,
-                      vertical: box.maxHeight * 0.04,
-                    )
-                  : EdgeInsets.symmetric(
-                      horizontal: isPortrait
-                          ? box.maxWidth * 0.035
-                          : box.maxWidth * 0.03,
-                      vertical: isPortrait
-                          ? box.maxHeight * 0.03
-                          : box.maxHeight * 0.035,
+                          final previewSlide = _currentPreviewSlide();
+
+                          return Stack(
+                            children: [
+                              if (!(previewSlide['templateType']?.toString() == 'photo' &&
+                                  (previewSlide['title']?.toString().trim().isNotEmpty ?? false)))
+                                _buildLogoPreviewOverlay(
+                                  isPortrait: isPortrait,
+                                  width: virtualWidth,
+                                  height: virtualHeight,
+                                  logoMode: _normalizeLogoMode(previewSlide['logoMode']?.toString()),
+                                  logoOpacity: _normalizeLogoOpacity(previewSlide['logoOpacity']),
+                                ),
+                              Padding(
+                                padding: usesHeadlinePreview
+                                    ? EdgeInsets.symmetric(
+                                        horizontal: virtualWidth * 0.07,
+                                        vertical: virtualHeight * 0.055,
+                                      )
+                                    : EdgeInsets.symmetric(
+                                        horizontal: isPortrait ? 80 : 120,
+                                        vertical: isPortrait ? 60 : 70,
+                                      ),
+                                child: _buildPreviewSlideContent(1.0),
+                              ),
+                              Positioned(
+                                left: 16,
+                                bottom: 16,
+                                child: Opacity(
+                                  opacity: 0.35,
+                                  child: Text(
+                                    widget.screenName,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 16,
+                                bottom: 16,
+                                child: Opacity(
+                                  opacity: 0.35,
+                                  child: Text(
+                                    (currentSlide.templateType == TemplateType.menu || currentSlide.templateType == TemplateType.drinks) && _currentPreviewPageCountForSelectedSlide() > 1
+                                        ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_currentPreviewPageCountForSelectedSlide()} · ${_durationValue(currentSlide)}s'
+                                        : 'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
-              child: _buildPreviewSlideContent(),
-            );
-          },
-        ),
-      ),
-      _buildLogoPreviewOverlay(
-        isPortrait: isPortrait,
-        width: targetWidth,
-        height: targetWidth * (isPortrait ? 16 / 9 : 9 / 16),
-        logoMode: currentSlide.logoMode,
-        logoOpacity: currentSlide.logoOpacity,
-      ),
-    ],
-  ),
-),
+                  ),
+                ),
               ),
             ),
           ),
@@ -1943,7 +1982,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildPreviewSlideContent() {
+  Widget _buildPreviewSlideContent(double scale) {
     final previewSlide = _currentPreviewSlide();
     final templateType =
         previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;
@@ -1963,8 +2002,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-
-Widget _buildMenuPreviewFromPayload(Map<String, dynamic> slide) {
+  Widget _buildMenuPreviewFromPayload(Map<String, dynamic> slide) {
     final items = ((slide['items'] as List?) ?? [])
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))

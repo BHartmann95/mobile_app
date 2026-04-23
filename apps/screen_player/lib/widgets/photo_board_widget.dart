@@ -57,14 +57,27 @@ class PhotoBoardWidget extends StatelessWidget {
                   right: (isPortrait ? 24 : 40) * scale,
                   bottom: titleBottomGap,
                 ),
-                child: Text(
-                  title.trim(),
+                child: Builder(
+              builder: (context) {
+                final titleText = title.trim();
+                final titleLength = titleText.length;
+                final veryLongTitle = titleLength > 34;
+                final longTitle = titleLength > 28;
+
+                final resolvedFont = veryLongTitle
+                    ? titleFont * 0.78
+                    : (longTitle ? titleFont * 0.88 : titleFont);
+
+                return Text(
+                  titleText,
                   textAlign: TextAlign.center,
-                  maxLines: spec.titleMaxLines,
+                  maxLines: veryLongTitle ? 3 : 2,
                   softWrap: true,
-                  overflow: TextOverflow.ellipsis,
-                  style: titleStyleBuilder(titleFont),
-                ),
+                  overflow: TextOverflow.visible,
+                  style: titleStyleBuilder(resolvedFont),
+                );
+              },
+            ),
               ),
             ],
             Expanded(
