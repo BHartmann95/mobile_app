@@ -83,6 +83,20 @@ class PhotoLayoutSpec {
 class SlideLayoutEngine {
   const SlideLayoutEngine._();
 
+ static double _menuScaleFactor(int itemCount, int longestItem, bool isPortrait) {
+  final isLongText = longestItem >= (isPortrait ? 22 : 18);
+
+  if (itemCount <= 4) {
+    return isLongText ? 1.0 : 1.08;
+  }
+
+  if (itemCount <= 7) return 1.0;
+
+  if (itemCount <= 10) return 0.92;
+
+  return 0.84;
+}
+
   static MenuLayoutSpec menu({
     required bool isPortrait,
     required String title,
@@ -141,12 +155,14 @@ class SlideLayoutEngine {
         rowGap = 6;
       }
 
+      final scale = _menuScaleFactor(itemCount, longestItem, isPortrait);
+
       return MenuLayoutSpec(
-        titleFont: titleFont,
-        subtitleFont: subtitleFont,
-        itemFont: itemFont,
-        priceFont: priceFont,
-        footerFont: footerFont,
+        titleFont: titleFont * scale,
+        subtitleFont: subtitleFont * scale,
+        itemFont: itemFont * scale,
+        priceFont: priceFont * scale,
+        footerFont: footerFont * scale,
         titleMaxLines: 2,
         subtitleMaxLines: 1,
         itemMaxLines: 2,
@@ -192,12 +208,14 @@ class SlideLayoutEngine {
       rowGap = 5;
     }
 
+    final scale = _menuScaleFactor(itemCount, longestItem, isPortrait);
+
     return MenuLayoutSpec(
-      titleFont: titleFont,
-      subtitleFont: subtitleFont,
-      itemFont: itemFont,
-      priceFont: priceFont,
-      footerFont: footerFont,
+      titleFont: titleFont * scale,
+      subtitleFont: subtitleFont * scale,
+      itemFont: itemFont * scale,
+      priceFont: priceFont * scale,
+      footerFont: footerFont * scale,
       titleMaxLines: 2,
       subtitleMaxLines: 1,
       itemMaxLines: 2,

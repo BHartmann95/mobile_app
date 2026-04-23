@@ -1922,8 +1922,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   isPortrait: isPortrait,
                                   width: virtualWidth,
                                   height: virtualHeight,
-                                  logoMode: _normalizeLogoMode(previewSlide['logoMode']?.toString()),
-                                  logoOpacity: _normalizeLogoOpacity(previewSlide['logoOpacity']),
+                                  logoMode: _normalizeLogoMode(
+                                    previewSlide['logoMode']?.toString(),
+                                  ),
+                                  logoOpacity: _normalizeLogoOpacity(
+                                    previewSlide['logoOpacity'],
+                                  ),
                                 ),
                               Padding(
                                 padding: usesHeadlinePreview
@@ -1957,7 +1961,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                 child: Opacity(
                                   opacity: 0.35,
                                   child: Text(
-                                    (currentSlide.templateType == TemplateType.menu || currentSlide.templateType == TemplateType.drinks) && _currentPreviewPageCountForSelectedSlide() > 1
+                                    (currentSlide.templateType == TemplateType.menu ||
+                                                currentSlide.templateType == TemplateType.drinks) &&
+                                            _currentPreviewPageCountForSelectedSlide() > 1
                                         ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_currentPreviewPageCountForSelectedSlide()} · ${_durationValue(currentSlide)}s'
                                         : 'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
                                     style: const TextStyle(
@@ -1982,7 +1988,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildPreviewSlideContent(double scale) {
+Widget _buildPreviewSlideContent(double scale) {
     final previewSlide = _currentPreviewSlide();
     final templateType =
         previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;

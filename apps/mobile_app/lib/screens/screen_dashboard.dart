@@ -89,7 +89,7 @@ class ScreenDashboardPage extends StatelessWidget {
           builder: (_) => TemplateEditorScreen(
             ip: ip,
             screenName: screenName,
-            screenOrientation: liveResult.orientation ?? screenOrientation,
+            screenOrientation: screenOrientation,
             templateType: liveContent.slides.isNotEmpty
                 ? liveContent.slides.first.templateType
                 : liveContent.templateType!,
