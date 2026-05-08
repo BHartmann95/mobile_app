@@ -29,14 +29,14 @@ class MenuBoardWidget extends StatelessWidget {
   });
 
   double _layoutScale(BoxConstraints c) {
-  final shortestSide = math.min(c.maxWidth, c.maxHeight);
-  final isPreview = shortestSide < 700;
+    final shortestSide = math.min(c.maxWidth, c.maxHeight);
+    final isPreview = shortestSide < 700;
 
-  final base = isPreview ? 700.0 : 400.0;
-  final scale = shortestSide / base;
+    final base = isPreview ? 700.0 : 400.0;
+    final scale = shortestSide / base;
 
-  return math.max(0.82, math.min(1.65, scale));
-}
+    return math.max(0.82, math.min(1.65, scale));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,16 +88,6 @@ class MenuBoardWidget extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: bodyStyleBuilder(subtitleFont),
               ),
-            if (pageLabel != null && pageLabel!.trim().isNotEmpty) ...[
-              SizedBox(height: sectionGap * 0.55),
-              Text(
-                pageLabel!,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: bodyStyleBuilder(footerFont),
-              ),
-            ],
             SizedBox(height: itemGap),
             Expanded(
               child: items.isEmpty
@@ -112,6 +102,11 @@ class MenuBoardWidget extends StatelessWidget {
                               final soldOut = item['soldOut'] == true;
                               final name = (item['name'] ?? '').toString();
                               final price = (item['price'] ?? '').toString();
+                              final lowerTitle = title.toLowerCase();
+                              final isDrinkSlide =
+                                  lowerTitle.contains('kaffee') ||
+                                      lowerTitle.contains('getränk') ||
+                                      lowerTitle.contains('drink');
 
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,8 +121,9 @@ class MenuBoardWidget extends StatelessWidget {
                                         decoration: soldOut
                                             ? TextDecoration.lineThrough
                                             : null,
-                                        decorationThickness:
-                                            soldOut ? math.max(1.2, 2 * scale) : null,
+                                        decorationThickness: soldOut
+                                            ? math.max(1.2, 2 * scale)
+                                            : null,
                                         color: soldOut
                                             ? const Color(0xCCF2E9DC)
                                             : null,
@@ -136,7 +132,9 @@ class MenuBoardWidget extends StatelessWidget {
                                   ),
                                   SizedBox(width: itemGap),
                                   SizedBox(
-                                    width: priceColumnWidth,
+                                    width: isDrinkSlide
+                                        ? priceColumnWidth * 0.82
+                                        : priceColumnWidth,
                                     child: Align(
                                       alignment: Alignment.topRight,
                                       child: Text(

@@ -10,6 +10,7 @@ class PhotoBoardWidget extends StatelessWidget {
   final Widget imageChild;
   final PhotoTitleStyleBuilder titleStyleBuilder;
   final double photoScale;
+  final bool fullscreenPhoto;
 
   const PhotoBoardWidget({
     super.key,
@@ -18,6 +19,7 @@ class PhotoBoardWidget extends StatelessWidget {
     required this.imageChild,
     required this.titleStyleBuilder,
     this.photoScale = 1.0,
+    this.fullscreenPhoto = false,
   });
 
   double _layoutScale(BoxConstraints c) {
@@ -32,6 +34,14 @@ class PhotoBoardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (fullscreenPhoto) {
+      return SizedBox.expand(
+        child: ClipRect(
+          child: imageChild,
+        ),
+      );
+    }
+
     final spec = SlideLayoutEngine.photo(
       isPortrait: isPortrait,
       title: title,

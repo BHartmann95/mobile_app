@@ -10,6 +10,7 @@ class PhotoBoardWidget extends StatelessWidget {
   final Widget imageChild;
   final PhotoTitleStyleBuilder titleStyleBuilder;
   final double photoScale;
+  final bool fullscreenPhoto;
 
   const PhotoBoardWidget({
     super.key,
@@ -18,6 +19,7 @@ class PhotoBoardWidget extends StatelessWidget {
     required this.imageChild,
     required this.titleStyleBuilder,
     this.photoScale = 1.0,
+    this.fullscreenPhoto = false,
   });
 
   double _layoutScale(BoxConstraints c) {
@@ -46,6 +48,14 @@ class PhotoBoardWidget extends StatelessWidget {
         final topGap = spec.topGap * scale;
         final titleBottomGap = spec.titleBottomGap * scale;
         final radius = math.max(14.0, 18.0 * scale);
+
+        if (fullscreenPhoto) {
+          return SizedBox.expand(
+            child: ClipRect(
+              child: imageChild,
+            ),
+          );
+        }
 
         return Column(
           children: [

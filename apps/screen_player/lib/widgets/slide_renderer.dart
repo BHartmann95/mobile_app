@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shared_models/shared_models.dart';
 
@@ -253,6 +255,37 @@ class SlideRenderer extends StatelessWidget {
         ? File(localPath.trim())
         : null;
 
+    bool fullscreenPhoto = false;
+    try {
+      final value = dynamicSlide.fullscreenPhoto;
+      if (value is bool) {
+        fullscreenPhoto = value;
+      } else if (value is String) {
+        fullscreenPhoto = value.toLowerCase() == 'true';
+      }
+    } catch (_) {}
+
+    if (!fullscreenPhoto) {
+      try {
+        final value = dynamicSlide.photoFitMode;
+        fullscreenPhoto = value?.toString().toLowerCase() == 'fullscreen';
+      } catch (_) {}
+    }
+
+    final imageChild = file != null && file.existsSync()
+        ? Image.file(
+            file,
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          )
+        : Center(
+            child: Text(
+              'Kein Bild',
+              style: _bodyStyle(isPortrait ? 26 : 20),
+            ),
+          );
+
     return Container(
       color: _parseBoardColor(slide.backgroundValue),
       width: double.infinity,
@@ -261,17 +294,8 @@ class SlideRenderer extends StatelessWidget {
         title: slide.title,
         isPortrait: isPortrait,
         titleStyleBuilder: _titleStyle,
-        imageChild: file != null && file.existsSync()
-            ? Image.file(
-                file,
-                fit: BoxFit.cover,
-              )
-            : Center(
-                child: Text(
-                  'Kein Bild',
-                  style: _bodyStyle(isPortrait ? 26 : 20),
-                ),
-              ),
+        imageChild: imageChild,
+        fullscreenPhoto: fullscreenPhoto,
       ),
     );
   }

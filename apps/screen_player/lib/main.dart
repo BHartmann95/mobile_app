@@ -117,6 +117,24 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
     return resolved.clamp(0.8, 1.25).toDouble();
   }
 
+  bool _isFullscreenPhotoSlide(Map<String, dynamic>? slide) {
+    if (slide == null) return false;
+    final templateType = slide['templateType']?.toString().toLowerCase() ?? '';
+    if (templateType != 'photo') return false;
+
+    final fullscreenValue = slide['fullscreenPhoto'];
+    if (fullscreenValue is bool) return fullscreenValue;
+    if (fullscreenValue is String) {
+      final normalized = fullscreenValue.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+        return true;
+      }
+    }
+
+    final fitMode = slide['photoFitMode']?.toString().trim().toLowerCase();
+    return fitMode == 'fullscreen';
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -1645,6 +1663,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
 
     final slide = slides[currentSlideIndex];
     final templateType = slide['templateType']?.toString() ?? 'menu';
+    final isFullscreenPhoto = _isFullscreenPhotoSlide(slide);
 
     return Scaffold(
   body: GestureDetector(
@@ -1655,17 +1674,23 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
       color: _getBoardColor(),
       child: Stack(
         children: [
-          Positioned.fill(
-            child: _buildLogoOverlay(slide),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 80,
-              vertical: 60,
+          if (!isFullscreenPhoto)
+            Positioned.fill(
+              child: _buildLogoOverlay(slide),
             ),
-            child: _buildSlideContent(slide, templateType),
+          Positioned.fill(
+            child: isFullscreenPhoto
+                ? _buildSlideContent(slide, templateType)
+                : Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 80,
+                      vertical: 60,
+                    ),
+                    child: _buildSlideContent(slide, templateType),
+                  ),
           ),
-          Positioned(
+          if (!isFullscreenPhoto)
+            Positioned(
             left: 16,
             right: 16,
             bottom: 16,
@@ -1769,7 +1794,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         footer: slide['footer']?.toString() ?? '',
         items: items,
         isPortrait: false,
-        pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
+        pageLabel: null,
         titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
         bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
         priceStyleBuilder: (base) =>
@@ -1793,7 +1818,7 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
         footer: slide['footer']?.toString() ?? '',
         items: items,
         isPortrait: true,
-        pageLabel: chunkTotal > 1 ? 'Teil $chunkIndex von $chunkTotal' : null,
+        pageLabel: null,
         titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
         bodyStyleBuilder: (base) => _getBodyStyle(fontSize: base, slide: slide),
         priceStyleBuilder: (base) =>
@@ -1816,10 +1841,13 @@ class _ScreenPlayerPageState extends State<ScreenPlayerPage>
           title: slide['title']?.toString() ?? '',
           isPortrait: _isPortraitContent(),
           photoScale: _getSlidePhotoScale(slide),
+          fullscreenPhoto: _isFullscreenPhotoSlide(slide),
           titleStyleBuilder: (base) => _getTitleStyle(fontSize: base, slide: slide),
           imageChild: exists
               ? Image.file(
                   file,
+                  width: double.infinity,
+                  height: double.infinity,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
                 )

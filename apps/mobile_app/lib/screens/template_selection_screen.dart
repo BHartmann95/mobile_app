@@ -56,6 +56,11 @@ class TemplateSelectionScreen extends StatelessWidget {
             subtitle: const Text('Begrüßung / Info'),
             onTap: () => openTemplate(context, TemplateType.welcome),
           ),
+          ListTile(
+            title: const Text('Foto'),
+            subtitle: const Text('Bild / Fullscreen-Foto'),
+            onTap: () => openTemplate(context, TemplateType.photo),
+          ),
         ],
       ),
     );

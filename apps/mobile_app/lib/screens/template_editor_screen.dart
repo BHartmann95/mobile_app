@@ -56,6 +56,7 @@ class _EditableSlide {
   String? photoPath;
   String? photoFileName;
   double photoScale;
+  bool fullscreenPhoto;
 
   _EditableSlide({
     required this.templateType,
@@ -74,6 +75,7 @@ class _EditableSlide {
     this.photoPath,
     this.photoFileName,
     this.photoScale = 1.0,
+    this.fullscreenPhoto = false,
   });
 
   void dispose() {
@@ -337,10 +339,37 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return byteData.buffer.asUint8List();
   }
 
-  Future<Map<String, String>?> _pickManagedPhotoFile() async {
+  Future<bool?> _showPhotoDisplayModeDialog() async {
+    if (!mounted) return null;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bilddarstellung wählen'),
+        content: const Text(
+          'Soll das Bild mit Tafelrand wie bisher oder bildschirmfüllend angezeigt werden?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Mit Rahmen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Fullscreen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _pickManagedPhotoFile() async {
     try {
       final source = await _showPhotoSourceSheet();
       if (source == null) return null;
+
+      final fullscreenPhoto = await _showPhotoDisplayModeDialog();
+      if (fullscreenPhoto == null) return null;
 
       final picked = await _imagePicker.pickImage(
         source: source,
@@ -363,6 +392,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'fileName': targetFile.uri.pathSegments.isNotEmpty
             ? targetFile.uri.pathSegments.last
             : fileName,
+        'fullscreenPhoto': fullscreenPhoto,
       };
     } catch (e) {
       if (!mounted) return null;
@@ -378,8 +408,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     if (selected == null) return;
 
     setState(() {
-      currentSlide.photoPath = selected['path'];
-      currentSlide.photoFileName = selected['fileName'];
+      currentSlide.photoPath = selected['path'] as String?;
+      currentSlide.photoFileName = selected['fileName'] as String?;
+      currentSlide.fullscreenPhoto = selected['fullscreenPhoto'] == true;
     });
   }
 
@@ -387,6 +418,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     setState(() {
       currentSlide.photoPath = null;
       currentSlide.photoFileName = null;
+      currentSlide.fullscreenPhoto = false;
     });
   }
 
@@ -1060,6 +1092,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           'imageFileName': fileName,
           'photoPath': slide.photoPath,
           'photoScale': 1.0,
+          'fullscreenPhoto': slide.fullscreenPhoto,
         };
       }),
     };
@@ -1551,11 +1584,25 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 ),
             ],
           ),
+          if (exists) ...[
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Aktuelle Darstellung',
+                border: OutlineInputBorder(),
+              ),
+              child: Text(
+                currentSlide.fullscreenPhoto
+                    ? 'Fullscreen – Bild füllt den kompletten Screen'
+                    : 'Mit Rahmen – wie bisher in die Tafel eingebettet',
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Text(
             exists
-                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Titel und Bildgröße werden automatisch angepasst.'
-                : 'Das Foto bleibt mit sichtbarem Tafelrand eingebettet und wird automatisch passend dargestellt.',
+                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Die Darstellung wird pro Bild gespeichert.'
+                : 'Beim Auswählen eines Fotos kannst du zwischen Tafelrand und Fullscreen wählen.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -1839,6 +1886,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'photoPath': currentSlide.photoPath,
         'imageFileName': currentSlide.photoFileName,
         'photoScale': 1.0,
+        'fullscreenPhoto': currentSlide.fullscreenPhoto,
       };
     }
 
@@ -1914,10 +1962,15 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
                           final previewSlide = _currentPreviewSlide();
 
+                          final isFullscreenPhotoPreview =
+                              previewSlide['templateType']?.toString() == 'photo' &&
+                                  previewSlide['fullscreenPhoto'] == true;
+
                           return Stack(
                             children: [
-                              if (!(previewSlide['templateType']?.toString() == 'photo' &&
-                                  (previewSlide['title']?.toString().trim().isNotEmpty ?? false)))
+                              if (!isFullscreenPhotoPreview &&
+                                  !(previewSlide['templateType']?.toString() == 'photo' &&
+                                      (previewSlide['title']?.toString().trim().isNotEmpty ?? false)))
                                 _buildLogoPreviewOverlay(
                                   isPortrait: isPortrait,
                                   width: virtualWidth,
@@ -1930,21 +1983,24 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   ),
                                 ),
                               Padding(
-                                padding: usesHeadlinePreview
-                                    ? EdgeInsets.symmetric(
-                                        horizontal: virtualWidth * 0.07,
-                                        vertical: virtualHeight * 0.055,
-                                      )
-                                    : EdgeInsets.symmetric(
-                                        horizontal: isPortrait ? 80 : 120,
-                                        vertical: isPortrait ? 60 : 70,
-                                      ),
+                                padding: isFullscreenPhotoPreview
+                                    ? EdgeInsets.zero
+                                    : usesHeadlinePreview
+                                        ? EdgeInsets.symmetric(
+                                            horizontal: virtualWidth * 0.07,
+                                            vertical: virtualHeight * 0.055,
+                                          )
+                                        : EdgeInsets.symmetric(
+                                            horizontal: isPortrait ? 80 : 120,
+                                            vertical: isPortrait ? 60 : 70,
+                                          ),
                                 child: _buildPreviewSlideContent(1.0),
                               ),
-                              Positioned(
-                                left: 16,
-                                bottom: 16,
-                                child: Opacity(
+                              if (!isFullscreenPhotoPreview)
+                                Positioned(
+                                  left: 16,
+                                  bottom: 16,
+                                  child: Opacity(
                                   opacity: 0.35,
                                   child: Text(
                                     widget.screenName,
@@ -1955,17 +2011,14 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   ),
                                 ),
                               ),
-                              Positioned(
-                                right: 16,
-                                bottom: 16,
-                                child: Opacity(
+                              if (!isFullscreenPhotoPreview)
+                                Positioned(
+                                  right: 16,
+                                  bottom: 16,
+                                  child: Opacity(
                                   opacity: 0.35,
                                   child: Text(
-                                    (currentSlide.templateType == TemplateType.menu ||
-                                                currentSlide.templateType == TemplateType.drinks) &&
-                                            _currentPreviewPageCountForSelectedSlide() > 1
-                                        ? 'Vorschau · ${_templateLabel(currentSlide.templateType)} · Teil 1 von ${_currentPreviewPageCountForSelectedSlide()} · ${_durationValue(currentSlide)}s'
-                                        : 'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
+                                    'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Colors.white,
@@ -2133,6 +2186,7 @@ Widget _buildPreviewSlideContent(double scale) {
     return PhotoBoardWidget(
       title: slide['title']?.toString() ?? '',
       isPortrait: isPortrait,
+      fullscreenPhoto: slide['fullscreenPhoto'] == true,
       titleStyleBuilder: (base) => _previewTitleStyleForSlide(
         slide,
         fontSize: base,
