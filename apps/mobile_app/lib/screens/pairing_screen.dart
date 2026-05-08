@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../models/screen.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_chalk_style.dart';
 
 class PairingScreen extends StatefulWidget {
   final Future<void> Function()? onPairedComplete;
@@ -440,133 +441,382 @@ class _PairingScreenState extends State<PairingScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final canGoBack = Navigator.of(context).canPop();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.initialScreen == null
-              ? 'Screen verbinden'
-              : 'Screen neu verbinden',
-        ),
+  InputDecoration _chalkInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(
+        color: chalkMutedText.withOpacity(0.92),
+        fontWeight: FontWeight.w700,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: isLoading ? null : _openQrScanner,
-                icon: const Icon(Icons.qr_code_scanner),
-                label: Text(
-                  widget.initialScreen == null
-                      ? 'QR-Code scannen'
-                      : 'QR-Code erneut scannen',
-                ),
+      filled: true,
+      fillColor: chalkCreamSoft.withOpacity(0.96),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide(color: chalkCream.withOpacity(0.55)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: BorderSide(color: chalkMutedText.withOpacity(0.18)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(20),
+        borderSide: const BorderSide(color: chalkText, width: 1.4),
+      ),
+    );
+  }
+
+  ButtonStyle _primaryButtonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: chalkCream,
+      foregroundColor: chalkText,
+      disabledBackgroundColor: chalkCream.withOpacity(0.55),
+      disabledForegroundColor: chalkText.withOpacity(0.45),
+      elevation: 0,
+      minimumSize: const Size.fromHeight(56),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+      ),
+      textStyle: const TextStyle(
+        fontWeight: FontWeight.w900,
+        fontSize: 15,
+      ),
+    );
+  }
+
+  ButtonStyle _secondaryButtonStyle() {
+    return OutlinedButton.styleFrom(
+      foregroundColor: Colors.white.withOpacity(0.92),
+      side: BorderSide(color: Colors.white.withOpacity(0.26)),
+      minimumSize: const Size.fromHeight(52),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      textStyle: const TextStyle(
+        fontWeight: FontWeight.w800,
+        fontSize: 15,
+      ),
+    );
+  }
+
+  Widget _orientationChip({
+    required String value,
+    required String label,
+    required IconData icon,
+  }) {
+    final selected = orientation == value;
+
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: isLoading
+            ? null
+            : () {
+                setState(() {
+                  orientation = value;
+                });
+              },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? chalkText : chalkCreamSoft.withOpacity(0.96),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected
+                  ? chalkText
+                  : chalkMutedText.withOpacity(0.18),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: selected ? chalkCream : chalkMutedText,
               ),
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 12),
-            TextField(
-              controller: ipController,
-              decoration: const InputDecoration(
-                labelText: 'IP-Adresse',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: codeController,
-              decoration: const InputDecoration(
-                labelText: 'Pairing Code',
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Screen Name',
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Text('Ausrichtung:'),
-                const SizedBox(width: 12),
-                ChoiceChip(
-                  label: const Text('Landscape'),
-                  selected: orientation == 'landscape',
-                  onSelected: isLoading
-                      ? null
-                      : (_) {
-                          setState(() {
-                            orientation = 'landscape';
-                          });
-                        },
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('Portrait'),
-                  selected: orientation == 'portrait',
-                  onSelected: isLoading
-                      ? null
-                      : (_) {
-                          setState(() {
-                            orientation = 'portrait';
-                          });
-                        },
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Aktuell: ${orientation == 'portrait' ? 'Portrait' : 'Landscape'}',
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isLoading ? null : pair,
-                child: isLoading
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(
-                        widget.initialScreen == null ? 'Verbinden' : 'Neu verbinden',
-                      ),
-              ),
-            ),
-            if (canGoBack) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: isLoading ? null : () => Navigator.pop(context),
-                  child: const Text('Zurück'),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? chalkCream : chalkText,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
-            if (error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Text(
-                  error!,
-                  style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canGoBack = Navigator.of(context).canPop();
+    final title = widget.initialScreen == null
+        ? 'Screen verbinden'
+        : 'Screen neu verbinden';
+    final subtitle = widget.initialScreen == null
+        ? 'Scanne den QR-Code am Player oder gib die Daten manuell ein.'
+        : 'Aktualisiere die Verbindung, wenn sich Netzwerk oder IP-Adresse geändert haben.';
+
+    return Scaffold(
+      backgroundColor: chalkInk,
+      extendBodyBehindAppBar: false,
+      appBar: chalkAppBar(title: title),
+      body: ChalkBackground(
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 40,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 560),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(22),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.94),
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.55),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.22),
+                                  blurRadius: 26,
+                                  offset: const Offset(0, 14),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: chalkText,
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: Icon(
+                                        widget.initialScreen == null
+                                            ? Icons.add_to_queue_rounded
+                                            : Icons.sync_rounded,
+                                        color: chalkCream,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            title,
+                                            style: const TextStyle(
+                                              color: chalkText,
+                                              fontSize: 25,
+                                              fontWeight: FontWeight.w900,
+                                              height: 1.05,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 5),
+                                          Text(
+                                            subtitle,
+                                            style: TextStyle(
+                                              color: chalkMutedText.withOpacity(0.92),
+                                              fontSize: 14,
+                                              height: 1.35,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: isLoading ? null : _openQrScanner,
+                                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                                    label: Text(
+                                      widget.initialScreen == null
+                                          ? 'QR-Code scannen'
+                                          : 'QR-Code erneut scannen',
+                                    ),
+                                    style: _primaryButtonStyle(),
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        color: chalkMutedText.withOpacity(0.18),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: Text(
+                                        'oder manuell eingeben',
+                                        style: TextStyle(
+                                          color: chalkMutedText.withOpacity(0.82),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        color: chalkMutedText.withOpacity(0.18),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 18),
+                                TextField(
+                                  controller: ipController,
+                                  keyboardType: TextInputType.url,
+                                  textInputAction: TextInputAction.next,
+                                  style: const TextStyle(
+                                    color: chalkText,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  cursorColor: chalkText,
+                                  decoration: _chalkInputDecoration('IP-Adresse'),
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: codeController,
+                                  textInputAction: TextInputAction.next,
+                                  textCapitalization: TextCapitalization.characters,
+                                  style: const TextStyle(
+                                    color: chalkText,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.2,
+                                  ),
+                                  cursorColor: chalkText,
+                                  decoration: _chalkInputDecoration('Pairing Code'),
+                                ),
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: nameController,
+                                  textInputAction: TextInputAction.done,
+                                  style: const TextStyle(
+                                    color: chalkText,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  cursorColor: chalkText,
+                                  decoration: _chalkInputDecoration('Screen Name'),
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'Ausrichtung',
+                                  style: TextStyle(
+                                    color: chalkMutedText.withOpacity(0.95),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    _orientationChip(
+                                      value: 'landscape',
+                                      label: 'Landscape',
+                                      icon: Icons.stay_current_landscape_rounded,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _orientationChip(
+                                      value: 'portrait',
+                                      label: 'Portrait',
+                                      icon: Icons.stay_current_portrait_rounded,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Aktuell: ${orientation == 'portrait' ? 'Portrait' : 'Landscape'}',
+                                  style: TextStyle(
+                                    color: chalkMutedText.withOpacity(0.78),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (error != null) ...[
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF9B2D2D).withOpacity(0.10),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: const Color(0xFF9B2D2D).withOpacity(0.22),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      error!,
+                                      style: const TextStyle(
+                                        color: Color(0xFF8E2323),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 22),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: isLoading ? null : pair,
+                                    style: _primaryButtonStyle(),
+                                    child: isLoading
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2.4,
+                                              color: chalkText,
+                                            ),
+                                          )
+                                        : Text(
+                                            widget.initialScreen == null
+                                                ? 'Verbinden'
+                                                : 'Neu verbinden',
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (canGoBack) ...[
+                            const SizedBox(height: 14),
+                            OutlinedButton(
+                              onPressed: isLoading ? null : () => Navigator.pop(context),
+                              style: _secondaryButtonStyle(),
+                              child: const Text('Zurück'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );
