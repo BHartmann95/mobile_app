@@ -5,6 +5,7 @@ import '../services/content_storage_service.dart';
 import 'template_selection_screen.dart';
 import 'content_library_screen.dart';
 import 'template_editor_screen.dart';
+import '../widgets/app_chalk_style.dart';
 
 class ScreenDashboardPage extends StatelessWidget {
   final String ip;
@@ -146,69 +147,76 @@ class ScreenDashboardPage extends StatelessWidget {
     final orientationLabel =
         screenOrientation == 'portrait' ? 'Portrait' : 'Landscape';
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: Colors.blueGrey.shade50,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.tv,
-                size: 30,
-              ),
+    return ChalkCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: chalkCream.withOpacity(0.95),
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    screenName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'IP-Adresse: $ip',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Ausrichtung: $orientationLabel',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Wähle aus, ob du neue Inhalte erstellen, deine Vorlagen öffnen oder den aktuellen Inhalt direkt vom Screen laden und bearbeiten möchtest.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                ],
-              ),
+            child: const Icon(
+              Icons.monitor_rounded,
+              size: 31,
+              color: chalkText,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  screenName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 25,
+                    fontWeight: FontWeight.w900,
+                    color: chalkText,
+                    height: 1.05,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChalkPill(
+                      label: ip,
+                      icon: Icons.wifi_rounded,
+                      background: const Color(0xFFF2F0EA),
+                      foreground: const Color(0xFF5D5549),
+                    ),
+                    ChalkPill(
+                      label: orientationLabel,
+                      icon: screenOrientation == 'portrait'
+                          ? Icons.stay_current_portrait_rounded
+                          : Icons.stay_current_landscape_rounded,
+                      background: const Color(0xFFE5F7ED),
+                      foreground: const Color(0xFF18764C),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Bearbeite den aktuellen Screen-Inhalt, erstelle eine neue Vorlage oder sende eine vorhandene Vorlage an diesen Screen.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -220,21 +228,23 @@ class ScreenDashboardPage extends StatelessWidget {
     required VoidCallback onTap,
     required bool primary,
   }) {
-    final cardChild = Padding(
-      padding: const EdgeInsets.all(18),
+    return ChalkCard(
+      margin: EdgeInsets.zero,
+      opacity: primary ? 1 : 0.96,
+      onTap: onTap,
       child: Row(
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
-              color: primary ? Colors.white24 : Colors.blueGrey.shade50,
-              borderRadius: BorderRadius.circular(14),
+              color: primary ? chalkInk : const Color(0xFFF1EEE7),
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(
               icon,
               size: 28,
-              color: primary ? Colors.white : null,
+              color: primary ? chalkCream : const Color(0xFF66736C),
             ),
           ),
           const SizedBox(width: 16),
@@ -244,10 +254,10 @@ class ScreenDashboardPage extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: primary ? Colors.white : null,
+                    fontWeight: FontWeight.w900,
+                    color: chalkText,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -255,42 +265,16 @@ class ScreenDashboardPage extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: primary ? Colors.white70 : Colors.grey.shade700,
+                    height: 1.25,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios,
-            size: 18,
-            color: primary ? Colors.white70 : Colors.grey.shade600,
-          ),
+          const Icon(Icons.arrow_forward_ios_rounded, size: 17, color: Color(0xFF7A766F)),
         ],
-      ),
-    );
-
-    if (primary) {
-      return Material(
-        color: Colors.blueGrey,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: onTap,
-          child: cardChild,
-        ),
-      );
-    }
-
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: cardChild,
       ),
     );
   }
@@ -298,40 +282,41 @@ class ScreenDashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Screen Dashboard'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          _buildInfoCard(),
-          const SizedBox(height: 20),
-          _buildActionCard(
-            icon: Icons.edit_note,
-            title: 'Aktuellen Screen-Inhalt bearbeiten',
-            subtitle:
-                'Lädt den aktuellen Inhalt direkt live vom Screen und öffnet ihn im Editor',
-            onTap: () => _openAssignedContentEditor(context),
-            primary: true,
-          ),
-          const SizedBox(height: 14),
-          _buildActionCard(
-            icon: Icons.add_circle_outline,
-            title: 'Neuen Inhalt erstellen',
-            subtitle: 'Neue Vorlage aus Menü, Getränke, Aktion, Willkommen oder Foto erstellen',
-            onTap: () => _openTemplateSelection(context),
-            primary: false,
-          ),
-          const SizedBox(height: 14),
-          _buildActionCard(
-            icon: Icons.library_books_outlined,
-            title: 'Meine Vorlagen',
-            subtitle: 'Vorlagen öffnen, bearbeiten oder an diesen Screen senden',
-            onTap: () => _openContentLibrary(context),
-            primary: false,
-          ),
-        ],
+      backgroundColor: chalkInk,
+      appBar: chalkAppBar(title: 'Screen Dashboard'),
+      body: ChalkBackground(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+          children: [
+            _buildInfoCard(),
+            const SizedBox(height: 22),
+            _buildActionCard(
+              icon: Icons.edit_note_rounded,
+              title: 'Aktuellen Screen-Inhalt bearbeiten',
+              subtitle: 'Live vom Screen laden und direkt im Editor weiterbearbeiten',
+              onTap: () => _openAssignedContentEditor(context),
+              primary: true,
+            ),
+            const SizedBox(height: 14),
+            _buildActionCard(
+              icon: Icons.add_circle_outline_rounded,
+              title: 'Neue Vorlage erstellen',
+              subtitle: 'Menü, Getränke, Aktion, Willkommen oder Foto neu gestalten',
+              onTap: () => _openTemplateSelection(context),
+              primary: false,
+            ),
+            const SizedBox(height: 14),
+            _buildActionCard(
+              icon: Icons.folder_copy_rounded,
+              title: 'Meine Vorlagen',
+              subtitle: 'Bestehende Vorlagen öffnen, bearbeiten oder an Screens senden',
+              onTap: () => _openContentLibrary(context),
+              primary: false,
+            ),
+          ],
+        ),
       ),
     );
   }
+
 }

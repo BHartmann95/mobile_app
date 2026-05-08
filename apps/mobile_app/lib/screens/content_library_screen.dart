@@ -6,6 +6,7 @@ import '../models/template.dart';
 import '../services/api_service.dart';
 import '../services/content_storage_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_chalk_style.dart';
 import 'template_editor_screen.dart';
 import 'template_selection_screen.dart';
 
@@ -149,6 +150,20 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     }).toList();
   }
 
+  Future<void> createNewTemplate() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TemplateSelectionScreen(
+          ip: widget.ip,
+          screenName: widget.screenName,
+          screenOrientation: widget.screenOrientation,
+        ),
+      ),
+    );
+    await loadContents();
+  }
+
   Future<void> openContent(SavedContent content) async {
     await Future.delayed(const Duration(milliseconds: 50));
 
@@ -168,29 +183,13 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     ).then((_) => loadContents());
   }
 
-
-  Future<void> createNewTemplate() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TemplateSelectionScreen(
-          ip: widget.ip,
-          screenName: widget.screenName,
-          screenOrientation: widget.screenOrientation,
-        ),
-      ),
-    );
-
-    await loadContents();
-  }
-
   Future<void> renameContent(SavedContent content) async {
     final controller = TextEditingController(text: content.name);
 
     final newName = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Vorlage umbenennen'),
+        title: const Text('Inhalt umbenennen'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -223,8 +222,8 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Vorlage löschen'),
-        content: Text('Soll die Vorlage "${content.name}" wirklich gelöscht werden?'),
+        title: const Text('Inhalt löschen'),
+        content: Text('Soll "${content.name}" wirklich gelöscht werden?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -251,7 +250,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     final newName = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Vorlage duplizieren'),
+        title: const Text('Inhalt duplizieren'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -389,6 +388,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
           'imageFileName': imageFileName,
           'photoPath': slide.photoPath,
           'photoScale': slide.photoScale,
+          'fullscreenPhoto': false,
         };
       }),
     };
@@ -622,88 +622,110 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
   Widget _buildSearchAndFilters() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        children: [
-          TextField(
-            controller: searchController,
-            decoration: InputDecoration(
-              hintText: 'Vorlagen suchen',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: searchController.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        searchController.clear();
-                      },
-                    ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.96),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.16),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                hintText: 'Vorlagen suchen',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear_rounded),
+                        onPressed: () {
+                          searchController.clear();
+                        },
+                      ),
+                filled: true,
+                fillColor: const Color(0xFFF7F5EF),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
+            const SizedBox(height: 14),
+            Text(
               'Format',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ContentOrientationFilter.values.map((filter) {
-                final isSelected = selectedOrientationFilter == filter;
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(_orientationFilterLabel(filter)),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(() {
-                        selectedOrientationFilter = filter;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ContentOrientationFilter.values.map((filter) {
+                  final isSelected = selectedOrientationFilter == filter;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(_orientationFilterLabel(filter)),
+                      selected: isSelected,
+                      selectedColor: chalkCream,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedOrientationFilter = filter;
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
+            const SizedBox(height: 12),
+            Text(
               'Typ',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: ContentLibraryFilter.values.map((filter) {
-                final isSelected = selectedFilter == filter;
-
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(_filterLabel(filter)),
-                    selected: isSelected,
-                    onSelected: (_) {
-                      setState(() {
-                        selectedFilter = filter;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: ContentLibraryFilter.values.map((filter) {
+                  final isSelected = selectedFilter == filter;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(_filterLabel(filter)),
+                      selected: isSelected,
+                      selectedColor: chalkCream,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedFilter = filter;
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -713,33 +735,97 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     final primaryType = _primaryTypeOf(content);
     final orientationLabel = _orientationLabelForContent(content);
 
-    return ListTile(
-      title: Text(content.name),
-      subtitle: Text(
-        '${templateLabel(primaryType)}'
-        ' • ${content.slides.length} Slide(s)'
-        ' • $orientationLabel'
-        '${content.lastUsedScreenIp != null ? " • zuletzt: ${content.lastUsedScreenIp}" : ""}',
-      ),
+    return ChalkCard(
       onTap: () => openContent(content),
-      onLongPress: () => showOptions(content),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: chalkCream.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              primaryType == TemplateType.photo
+                  ? Icons.image_rounded
+                  : primaryType == TemplateType.drinks
+                      ? Icons.local_cafe_rounded
+                      : primaryType == TemplateType.promo
+                          ? Icons.campaign_rounded
+                          : primaryType == TemplateType.welcome
+                              ? Icons.waving_hand_rounded
+                              : Icons.restaurant_menu_rounded,
+              color: chalkText,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  content.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: chalkText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChalkPill(
+                      label: templateLabel(primaryType),
+                      background: const Color(0xFFF2F0EA),
+                      foreground: const Color(0xFF5D5549),
+                    ),
+                    ChalkPill(
+                      label: '${content.slides.length} Slide(s)',
+                      background: const Color(0xFFE5F7ED),
+                      foreground: const Color(0xFF18764C),
+                    ),
+                    ChalkPill(
+                      label: orientationLabel,
+                      background: const Color(0xFFFFF0D6),
+                      foreground: const Color(0xFF9A6400),
+                    ),
+                  ],
+                ),
+                if (content.lastUsedScreenIp != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'zuletzt: ${content.lastUsedScreenIp}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
           if (isSending)
             const SizedBox(
-              width: 20,
-              height: 20,
+              width: 22,
+              height: 22,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           else
             IconButton(
-              icon: const Icon(Icons.send),
+              icon: const Icon(Icons.send_rounded),
               onPressed: () => sendContentToMultipleScreens(content),
               tooltip: 'Vorlage an Screens senden',
             ),
           IconButton(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Icons.more_vert_rounded),
             onPressed: () => showOptions(content),
           ),
         ],
@@ -801,42 +887,56 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
     if (isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        backgroundColor: chalkInk,
+        body: Center(child: CircularProgressIndicator(color: chalkCream)),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Meine Vorlagen'),
-      ),
-      body: Column(
-        children: [
-          _buildSearchAndFilters(),
-          Expanded(
-            child: filteredContents.isEmpty
-                ? Center(
-                    child: Text(
-                      contents.isEmpty
-                          ? 'Keine Vorlagen vorhanden'
-                          : 'Keine Vorlagen für diese Suche oder diesen Filter gefunden',
+      backgroundColor: chalkInk,
+      appBar: chalkAppBar(title: 'Meine Vorlagen'),
+      body: ChalkBackground(
+        child: Column(
+          children: [
+            _buildSearchAndFilters(),
+            Expanded(
+              child: filteredContents.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Text(
+                          contents.isEmpty
+                              ? 'Noch keine Vorlagen vorhanden'
+                              : 'Keine Vorlagen für diese Suche gefunden',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 96),
+                      itemCount: filteredContents.length,
+                      itemBuilder: (context, index) {
+                        final content = filteredContents[index];
+                        return _buildContentTile(content);
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 88),
-                    itemCount: filteredContents.length,
-                    itemBuilder: (context, index) {
-                      final content = filteredContents[index];
-                      return _buildContentTile(content);
-                    },
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: chalkCream,
+        foregroundColor: chalkText,
         onPressed: createNewTemplate,
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded),
         label: const Text('Neue Vorlage'),
       ),
     );
   }
+
 }
