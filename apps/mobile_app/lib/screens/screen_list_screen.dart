@@ -305,7 +305,7 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     statusRefreshTimer = null;
   }
 
-  Future<void> _openContentLibraryQuickAccess() async {
+  Future<void> _openMyTemplatesQuickAccess() async {
     if (screens.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -819,17 +819,17 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.send_outlined),
-                title: const Text('Inhalt senden'),
-                subtitle: const Text('Gespeicherte Inhalte an einen Screen senden'),
+                leading: const Icon(Icons.folder_copy_outlined),
+                title: const Text('Meine Vorlagen'),
+                subtitle: const Text('Vorlagen öffnen, bearbeiten oder senden'),
                 onTap: () {
                   Navigator.pop(context);
-                  _openContentLibraryQuickAccess();
+                  _openMyTemplatesQuickAccess();
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.add_to_photos_outlined),
-                title: const Text('Neuen Screen hinzufügen'),
+                title: const Text('Screen hinzufügen'),
                 subtitle: const Text('Screen koppeln oder erneut verbinden'),
                 onTap: () {
                   Navigator.pop(context);
@@ -931,7 +931,7 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       body: screens.isEmpty
           ? _buildEmptyState()
           : ListView.builder(
-              padding: const EdgeInsets.only(top: 8, bottom: 96),
+              padding: const EdgeInsets.only(top: 8, bottom: 104),
               itemCount: screens.length,
               itemBuilder: (context, index) {
                 final screen = screens[index];
@@ -941,11 +941,27 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'primary_screen_action_fab',
-        onPressed: _showPrimaryActionSheet,
-        icon: const Icon(Icons.send_outlined),
-        label: const Text('Inhalt senden'),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: addScreen,
+                icon: const Icon(Icons.add_to_photos_outlined),
+                label: const Text('Screen hinzufügen'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _openMyTemplatesQuickAccess,
+                icon: const Icon(Icons.folder_copy_outlined),
+                label: const Text('Meine Vorlagen'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

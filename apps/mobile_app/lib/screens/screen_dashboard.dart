@@ -198,7 +198,7 @@ class ScreenDashboardPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Wähle aus, ob du neuen Content erstellen, bereits gespeicherte Inhalte senden oder den aktuellen Inhalt direkt vom Screen laden und bearbeiten möchtest.',
+                    'Wähle aus, ob du neue Inhalte erstellen, deine Vorlagen öffnen oder den aktuellen Inhalt direkt vom Screen laden und bearbeiten möchtest.',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade800,
@@ -318,15 +318,15 @@ class ScreenDashboardPage extends StatelessWidget {
           _buildActionCard(
             icon: Icons.add_circle_outline,
             title: 'Neuen Inhalt erstellen',
-            subtitle: 'Neues Menü, Aktion oder Willkommens-Screen anlegen',
+            subtitle: 'Neue Vorlage aus Menü, Getränke, Aktion, Willkommen oder Foto erstellen',
             onTap: () => _openTemplateSelection(context),
             primary: false,
           ),
           const SizedBox(height: 14),
           _buildActionCard(
             icon: Icons.library_books_outlined,
-            title: 'Gespeicherte Inhalte',
-            subtitle: 'Bestehende Inhalte öffnen, bearbeiten oder senden',
+            title: 'Meine Vorlagen',
+            subtitle: 'Vorlagen öffnen, bearbeiten oder an diesen Screen senden',
             onTap: () => _openContentLibrary(context),
             primary: false,
           ),

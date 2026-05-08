@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/content_storage_service.dart';
 import '../services/storage_service.dart';
 import 'template_editor_screen.dart';
+import 'template_selection_screen.dart';
 
 enum ContentLibraryFilter {
   all,
@@ -167,13 +168,29 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     ).then((_) => loadContents());
   }
 
+
+  Future<void> createNewTemplate() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TemplateSelectionScreen(
+          ip: widget.ip,
+          screenName: widget.screenName,
+          screenOrientation: widget.screenOrientation,
+        ),
+      ),
+    );
+
+    await loadContents();
+  }
+
   Future<void> renameContent(SavedContent content) async {
     final controller = TextEditingController(text: content.name);
 
     final newName = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Inhalt umbenennen'),
+        title: const Text('Vorlage umbenennen'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -206,8 +223,8 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Inhalt löschen'),
-        content: Text('Soll "${content.name}" wirklich gelöscht werden?'),
+        title: const Text('Vorlage löschen'),
+        content: Text('Soll die Vorlage "${content.name}" wirklich gelöscht werden?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -234,7 +251,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     final newName = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Inhalt duplizieren'),
+        title: const Text('Vorlage duplizieren'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -611,7 +628,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
           TextField(
             controller: searchController,
             decoration: InputDecoration(
-              hintText: 'Inhalte suchen',
+              hintText: 'Vorlagen suchen',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: searchController.text.isEmpty
                   ? null
@@ -719,7 +736,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
             IconButton(
               icon: const Icon(Icons.send),
               onPressed: () => sendContentToMultipleScreens(content),
-              tooltip: 'An mehrere Screens senden',
+              tooltip: 'Vorlage an Screens senden',
             ),
           IconButton(
             icon: const Icon(Icons.more_vert),
@@ -790,7 +807,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Content Bibliothek'),
+        title: const Text('Meine Vorlagen'),
       ),
       body: Column(
         children: [
@@ -800,11 +817,12 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
                 ? Center(
                     child: Text(
                       contents.isEmpty
-                          ? 'Keine Inhalte vorhanden'
-                          : 'Keine Inhalte für diese Suche oder diesen Filter gefunden',
+                          ? 'Keine Vorlagen vorhanden'
+                          : 'Keine Vorlagen für diese Suche oder diesen Filter gefunden',
                     ),
                   )
                 : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 88),
                     itemCount: filteredContents.length,
                     itemBuilder: (context, index) {
                       final content = filteredContents[index];
@@ -813,6 +831,11 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
                   ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: createNewTemplate,
+        icon: const Icon(Icons.add),
+        label: const Text('Neue Vorlage'),
       ),
     );
   }

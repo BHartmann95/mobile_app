@@ -99,6 +99,7 @@ class _EditableSlide {
 }
 
 class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
+  static const String _addFromLibraryAction = '__add_from_library__';
   final libraryNameController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -666,8 +667,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-  Future<TemplateType?> _showTemplatePickerDialog() {
-    return showDialog<TemplateType>(
+  Future<Object?> _showTemplatePickerDialog() {
+    return showDialog<Object?>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Slide-Typ wählen'),
@@ -699,6 +700,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               title: const Text('Foto'),
               onTap: () => Navigator.pop(context, TemplateType.photo),
             ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.folder_copy_outlined),
+              title: const Text('Aus meinen Vorlagen'),
+              subtitle: const Text('Slides aus einer gespeicherten Vorlage übernehmen'),
+              onTap: () => Navigator.pop(context, _addFromLibraryAction),
+            ),
           ],
         ),
       ),
@@ -706,12 +714,72 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Future<void> addSlide() async {
-    final selectedType = await _showTemplatePickerDialog();
-    if (selectedType == null) return;
+    final selected = await _showTemplatePickerDialog();
+    if (selected == null) return;
+
+    if (selected == _addFromLibraryAction) {
+      await _addSlidesFromMyTemplates();
+      return;
+    }
+
+    if (selected is! TemplateType) return;
 
     setState(() {
-      slides.add(_createDefaultSlide(selectedType));
+      slides.add(_createDefaultSlide(selected));
       selectedSlideIndex = slides.length - 1;
+    });
+  }
+
+  Future<void> _addSlidesFromMyTemplates() async {
+    final storage = ContentStorageService();
+    final contents = await storage.loadContents();
+
+    if (!mounted) return;
+
+    if (contents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Es sind noch keine Vorlagen gespeichert.')),
+      );
+      return;
+    }
+
+    contents.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    final selectedContent = await showDialog<SavedContent>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vorlage auswählen'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: contents.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final content = contents[index];
+              final slideCount = content.slides.length;
+              return ListTile(
+                leading: const Icon(Icons.folder_copy_outlined),
+                title: Text(content.name),
+                subtitle: Text(slideCount == 1 ? '1 Slide' : '$slideCount Slides'),
+                onTap: () => Navigator.pop(context, content),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    if (selectedContent == null) return;
+
+    setState(() {
+      final insertIndex = slides.length;
+      if (selectedContent.slides.isEmpty) {
+        slides.add(_createDefaultSlide(selectedContent.templateType ?? TemplateType.menu));
+      } else {
+        slides.addAll(selectedContent.slides.map(_createSlideFromSaved));
+      }
+      selectedSlideIndex = insertIndex;
     });
   }
 
@@ -763,7 +831,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   String _screenTitle() {
-    return 'Inhalt bearbeiten';
+    return 'Vorlage bearbeiten';
   }
 
   int _durationValue(_EditableSlide slide) {
@@ -813,7 +881,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     if (name.isEmpty) {
       setState(() {
-        errorMessage = 'Bitte einen Namen für die Bibliothek eingeben';
+        errorMessage = 'Bitte einen Namen für die Vorlage eingeben';
       });
       return;
     }
@@ -1259,7 +1327,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       children: [
         TextField(
           controller: libraryNameController,
-          decoration: const InputDecoration(labelText: 'Name in Bibliothek'),
+          decoration: const InputDecoration(labelText: 'Name der Vorlage'),
         ),
         const SizedBox(height: 12),
         TextField(
