@@ -16,6 +16,7 @@ import '../services/storage_service.dart';
 import '../widgets/headline_board_widget.dart';
 import '../widgets/menu_board_widget.dart';
 import '../widgets/photo_board_widget.dart';
+import '../widgets/app_chalk_style.dart';
 
 class TemplateEditorScreen extends StatefulWidget {
   final String ip;
@@ -99,7 +100,6 @@ class _EditableSlide {
 }
 
 class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
-  static const String _addFromLibraryAction = '__add_from_library__';
   final libraryNameController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -268,26 +268,92 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     return showModalBottomSheet<ImageSource>(
       context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.52),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Mediathek'),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: chalkCreamSoft.withOpacity(0.98),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withOpacity(0.52), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.34),
+                blurRadius: 30,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildModalAction(
+                icon: Icons.photo_library_outlined,
+                label: 'Mediathek',
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              _buildModalAction(
+                icon: Icons.photo_camera_outlined,
+                label: 'Foto aufnehmen',
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              _buildModalAction(
+                icon: Icons.close_rounded,
+                label: 'Abbrechen',
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModalAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool destructive = false,
+  }) {
+    final accent = destructive ? const Color(0xFF9B2D2D) : chalkText;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: destructive
+                        ? const Color(0xFFFFE8E4)
+                        : Colors.white.withOpacity(0.56),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 20, color: accent),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Foto aufnehmen'),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.close),
-              title: const Text('Abbrechen'),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -340,37 +406,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return byteData.buffer.asUint8List();
   }
 
-  Future<bool?> _showPhotoDisplayModeDialog() async {
-    if (!mounted) return null;
-
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Bilddarstellung wählen'),
-        content: const Text(
-          'Soll das Bild mit Tafelrand wie bisher oder bildschirmfüllend angezeigt werden?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Mit Rahmen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Fullscreen'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<Map<String, dynamic>?> _pickManagedPhotoFile() async {
+  Future<Map<String, String>?> _pickManagedPhotoFile() async {
     try {
       final source = await _showPhotoSourceSheet();
       if (source == null) return null;
-
-      final fullscreenPhoto = await _showPhotoDisplayModeDialog();
-      if (fullscreenPhoto == null) return null;
 
       final picked = await _imagePicker.pickImage(
         source: source,
@@ -393,7 +432,6 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'fileName': targetFile.uri.pathSegments.isNotEmpty
             ? targetFile.uri.pathSegments.last
             : fileName,
-        'fullscreenPhoto': fullscreenPhoto,
       };
     } catch (e) {
       if (!mounted) return null;
@@ -404,14 +442,77 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
+
+  AlertDialog _chalkEditorDialog({
+    required String title,
+    required Widget content,
+    required List<Widget> actions,
+  }) {
+    return AlertDialog(
+      backgroundColor: chalkCreamSoft,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      title: Text(
+        title,
+        style: const TextStyle(color: chalkText, fontWeight: FontWeight.w900),
+      ),
+      content: content,
+      actions: actions,
+    );
+  }
+
+  ButtonStyle _chalkEditorActionStyle({bool destructive = false}) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: destructive ? const Color(0xFF9B2D2D) : chalkCream,
+      foregroundColor: destructive ? Colors.white : chalkText,
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+    );
+  }
+
+  Future<bool?> _showPhotoDisplayModeDialog() async {
+    if (!mounted) return null;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => _chalkEditorDialog(
+        title: 'Bilddarstellung',
+        content: const Text(
+          'Soll das Foto mit Tafelrand oder bildschirmfüllend angezeigt werden?',
+          style: TextStyle(color: chalkMutedText, height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(foregroundColor: chalkMutedText),
+            child: const Text('Mit Rahmen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: chalkCream,
+              foregroundColor: chalkText,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+            ),
+            child: const Text('Fullscreen'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickPhotoForCurrentSlide() async {
     final selected = await _pickManagedPhotoFile();
     if (selected == null) return;
 
+    final fullscreen = await _showPhotoDisplayModeDialog();
+    if (fullscreen == null) return;
+
     setState(() {
-      currentSlide.photoPath = selected['path'] as String?;
-      currentSlide.photoFileName = selected['fileName'] as String?;
-      currentSlide.fullscreenPhoto = selected['fullscreenPhoto'] == true;
+      currentSlide.photoPath = selected['path'];
+      currentSlide.photoFileName = selected['fileName'];
+      currentSlide.fullscreenPhoto = fullscreen;
     });
   }
 
@@ -446,21 +547,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           highlightTitleController: TextEditingController(),
           highlightPriceController: TextEditingController(),
           durationController: TextEditingController(text: '10'),
-          itemNameControllers: [
-            TextEditingController(text: 'Pizza + Cola'),
-            TextEditingController(text: 'Pasta Arrabiata'),
-            TextEditingController(text: 'Tiramisu'),
-          ],
-          itemPriceControllers: [
-            TextEditingController(text: '9,90'),
-            TextEditingController(text: '8,50'),
-            TextEditingController(text: '4,20'),
-          ],
-          itemSoldOutControllers: [
-            ValueNotifier<bool>(false),
-            ValueNotifier<bool>(false),
-            ValueNotifier<bool>(false),
-          ],
+          itemNameControllers: [],
+          itemPriceControllers: [],
+          itemSoldOutControllers: [],
           textScale: 1.0,
         );
         _attachSlideListeners(slide);
@@ -475,21 +564,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           highlightTitleController: TextEditingController(),
           highlightPriceController: TextEditingController(),
           durationController: TextEditingController(text: '10'),
-          itemNameControllers: [
-            TextEditingController(text: 'Cola 0,33'),
-            TextEditingController(text: 'Bier 0,5'),
-            TextEditingController(text: 'Espresso'),
-          ],
-          itemPriceControllers: [
-            TextEditingController(text: '3,50'),
-            TextEditingController(text: '4,20'),
-            TextEditingController(text: '2,50'),
-          ],
-          itemSoldOutControllers: [
-            ValueNotifier<bool>(false),
-            ValueNotifier<bool>(false),
-            ValueNotifier<bool>(false),
-          ],
+          itemNameControllers: [],
+          itemPriceControllers: [],
+          itemSoldOutControllers: [],
           textScale: 1.0,
         );
         _attachSlideListeners(slide);
@@ -499,10 +576,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         final slide = _EditableSlide(
           templateType: TemplateType.promo,
           titleController: TextEditingController(text: 'Aktion'),
-          subtitleController: TextEditingController(text: 'Happy Hour'),
-          footerController: TextEditingController(text: 'Nur heute ab 18 Uhr'),
-          highlightTitleController: TextEditingController(text: '2 Cocktails'),
-          highlightPriceController: TextEditingController(text: '1 Gratis'),
+          subtitleController: TextEditingController(text: ''),
+          footerController: TextEditingController(text: ''),
+          highlightTitleController: TextEditingController(),
+          highlightPriceController: TextEditingController(),
           durationController: TextEditingController(text: '10'),
           itemNameControllers: [],
           itemPriceControllers: [],
@@ -515,9 +592,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         final slide = _EditableSlide(
           templateType: TemplateType.welcome,
           titleController: TextEditingController(text: 'Willkommen'),
-          subtitleController:
-              TextEditingController(text: 'Schön, dass Sie da sind'),
-          footerController: TextEditingController(text: 'Guten Appetit'),
+          subtitleController: TextEditingController(text: ''),
+          footerController: TextEditingController(text: ''),
           highlightTitleController: TextEditingController(),
           highlightPriceController: TextEditingController(),
           durationController: TextEditingController(text: '10'),
@@ -663,123 +739,95 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       case TemplateType.welcome:
         return Colors.green;
       case TemplateType.photo:
-        return Colors.purple;
+        return const Color(0xFF7A5E2C);
     }
   }
 
-  Future<Object?> _showTemplatePickerDialog() {
-    return showDialog<Object?>(
+  Future<TemplateType?> _showTemplatePickerDialog() {
+    final options = <TemplateType>[
+      TemplateType.menu,
+      TemplateType.drinks,
+      TemplateType.promo,
+      TemplateType.welcome,
+      TemplateType.photo,
+    ];
+
+    return showDialog<TemplateType>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Slide-Typ wählen'),
+      builder: (context) => _chalkEditorDialog(
+        title: 'Slide-Typ wählen',
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.restaurant_menu),
-              title: const Text('Menü'),
-              onTap: () => Navigator.pop(context, TemplateType.menu),
-            ),
-            ListTile(
-              leading: const Icon(Icons.local_bar),
-              title: const Text('Getränke'),
-              onTap: () => Navigator.pop(context, TemplateType.drinks),
-            ),
-            ListTile(
-              leading: const Icon(Icons.local_offer),
-              title: const Text('Aktion'),
-              onTap: () => Navigator.pop(context, TemplateType.promo),
-            ),
-            ListTile(
-              leading: const Icon(Icons.waving_hand),
-              title: const Text('Willkommen'),
-              onTap: () => Navigator.pop(context, TemplateType.welcome),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Foto'),
-              onTap: () => Navigator.pop(context, TemplateType.photo),
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.folder_copy_outlined),
-              title: const Text('Aus meinen Vorlagen'),
-              subtitle: const Text('Slides aus einer gespeicherten Vorlage übernehmen'),
-              onTap: () => Navigator.pop(context, _addFromLibraryAction),
-            ),
+            for (final type in options)
+              _buildDialogTemplateTile(
+                type: type,
+                onTap: () => Navigator.pop(context, type),
+              ),
           ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: chalkMutedText),
+            child: const Text('Abbrechen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogTemplateTile({
+    required TemplateType type,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: Colors.white.withOpacity(0.46),
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: _templateColor(type).withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  child: Icon(_templateIcon(type), size: 19, color: _templateColor(type)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _templateLabel(type),
+                    style: const TextStyle(
+                      color: chalkText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
   Future<void> addSlide() async {
-    final selected = await _showTemplatePickerDialog();
-    if (selected == null) return;
-
-    if (selected == _addFromLibraryAction) {
-      await _addSlidesFromMyTemplates();
-      return;
-    }
-
-    if (selected is! TemplateType) return;
+    final selectedType = await _showTemplatePickerDialog();
+    if (selectedType == null) return;
 
     setState(() {
-      slides.add(_createDefaultSlide(selected));
+      slides.add(_createDefaultSlide(selectedType));
       selectedSlideIndex = slides.length - 1;
-    });
-  }
-
-  Future<void> _addSlidesFromMyTemplates() async {
-    final storage = ContentStorageService();
-    final contents = await storage.loadContents();
-
-    if (!mounted) return;
-
-    if (contents.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Es sind noch keine Vorlagen gespeichert.')),
-      );
-      return;
-    }
-
-    contents.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-
-    final selectedContent = await showDialog<SavedContent>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Vorlage auswählen'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: contents.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final content = contents[index];
-              final slideCount = content.slides.length;
-              return ListTile(
-                leading: const Icon(Icons.folder_copy_outlined),
-                title: Text(content.name),
-                subtitle: Text(slideCount == 1 ? '1 Slide' : '$slideCount Slides'),
-                onTap: () => Navigator.pop(context, content),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-
-    if (selectedContent == null) return;
-
-    setState(() {
-      final insertIndex = slides.length;
-      if (selectedContent.slides.isEmpty) {
-        slides.add(_createDefaultSlide(selectedContent.templateType ?? TemplateType.menu));
-      } else {
-        slides.addAll(selectedContent.slides.map(_createSlideFromSaved));
-      }
-      selectedSlideIndex = insertIndex;
     });
   }
 
@@ -831,7 +879,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   String _screenTitle() {
-    return 'Vorlage bearbeiten';
+    return 'Inhalt bearbeiten';
   }
 
   int _durationValue(_EditableSlide slide) {
@@ -881,7 +929,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     if (name.isEmpty) {
       setState(() {
-        errorMessage = 'Bitte einen Namen für die Vorlage eingeben';
+        errorMessage = 'Bitte einen Namen für die Bibliothek eingeben';
       });
       return;
     }
@@ -921,11 +969,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     final retry = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Screen offline'),
+      builder: (_) => _chalkEditorDialog(
+        title: 'Screen offline',
         content: Text(
           '"${widget.screenName}" ist aktuell nicht erreichbar.\n\n'
           'Bitte prüfen, ob der Player geöffnet ist und sich das Gerät im selben WLAN befindet.',
+          style: TextStyle(color: chalkMutedText.withOpacity(0.95), height: 1.35),
         ),
         actions: [
           TextButton(
@@ -934,6 +983,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
+            style: _chalkEditorActionStyle(),
             child: const Text('Erneut prüfen'),
           ),
         ],
@@ -957,9 +1007,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     await showDialog<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+      builder: (_) => _chalkEditorDialog(
+        title: title,
+        content: Text(message, style: TextStyle(color: chalkMutedText.withOpacity(0.95), height: 1.35)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -970,6 +1020,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               Navigator.pop(context);
               onRetry();
             },
+            style: _chalkEditorActionStyle(),
             child: const Text('Erneut versuchen'),
           ),
         ],
@@ -1327,7 +1378,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       children: [
         TextField(
           controller: libraryNameController,
-          decoration: const InputDecoration(labelText: 'Name der Vorlage'),
+          decoration: const InputDecoration(labelText: 'Name in Bibliothek'),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -1652,25 +1703,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 ),
             ],
           ),
-          if (exists) ...[
-            const SizedBox(height: 12),
-            InputDecorator(
-              decoration: const InputDecoration(
-                labelText: 'Aktuelle Darstellung',
-                border: OutlineInputBorder(),
-              ),
-              child: Text(
-                currentSlide.fullscreenPhoto
-                    ? 'Fullscreen – Bild füllt den kompletten Screen'
-                    : 'Mit Rahmen – wie bisher in die Tafel eingebettet',
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
           Text(
             exists
-                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Die Darstellung wird pro Bild gespeichert.'
-                : 'Beim Auswählen eines Fotos kannst du zwischen Tafelrand und Fullscreen wählen.',
+                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Titel und Bildgröße werden automatisch angepasst.'
+                : 'Das Foto bleibt mit sichtbarem Tafelrand eingebettet und wird automatisch passend dargestellt.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -1952,9 +1989,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         'logoMode': currentSlide.logoMode,
         'logoOpacity': currentSlide.logoOpacity,
         'photoPath': currentSlide.photoPath,
+        'fullscreenPhoto': currentSlide.fullscreenPhoto,
         'imageFileName': currentSlide.photoFileName,
         'photoScale': 1.0,
-        'fullscreenPhoto': currentSlide.fullscreenPhoto,
       };
     }
 
@@ -2029,10 +2066,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                               currentSlide.templateType == TemplateType.welcome;
 
                           final previewSlide = _currentPreviewSlide();
-
                           final isFullscreenPhotoPreview =
                               previewSlide['templateType']?.toString() == 'photo' &&
-                                  previewSlide['fullscreenPhoto'] == true;
+                              previewSlide['fullscreenPhoto'] == true;
 
                           return Stack(
                             children: [
@@ -2066,9 +2102,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                               ),
                               if (!isFullscreenPhotoPreview)
                                 Positioned(
-                                  left: 16,
-                                  bottom: 16,
-                                  child: Opacity(
+                                left: 16,
+                                bottom: 16,
+                                child: Opacity(
                                   opacity: 0.35,
                                   child: Text(
                                     widget.screenName,
@@ -2081,9 +2117,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                               ),
                               if (!isFullscreenPhotoPreview)
                                 Positioned(
-                                  right: 16,
-                                  bottom: 16,
-                                  child: Opacity(
+                                right: 16,
+                                bottom: 16,
+                                child: Opacity(
                                   opacity: 0.35,
                                   child: Text(
                                     'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
@@ -2254,7 +2290,6 @@ Widget _buildPreviewSlideContent(double scale) {
     return PhotoBoardWidget(
       title: slide['title']?.toString() ?? '',
       isPortrait: isPortrait,
-      fullscreenPhoto: slide['fullscreenPhoto'] == true,
       titleStyleBuilder: (base) => _previewTitleStyleForSlide(
         slide,
         fontSize: base,
@@ -2277,6 +2312,63 @@ Widget _buildPreviewSlideContent(double scale) {
                 ),
               ),
             ),
+      fullscreenPhoto: slide['fullscreenPhoto'] == true,
+    );
+  }
+
+  ThemeData _chalkEditorTheme(BuildContext context) {
+    final base = Theme.of(context);
+    final inputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(18),
+      borderSide: BorderSide(color: chalkMutedText.withOpacity(0.18)),
+    );
+
+    return base.copyWith(
+      scaffoldBackgroundColor: chalkInk,
+      textTheme: base.textTheme.apply(
+        bodyColor: chalkText,
+        displayColor: chalkText,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.52),
+        labelStyle: TextStyle(color: chalkMutedText.withOpacity(0.9)),
+        floatingLabelStyle: const TextStyle(color: chalkText, fontWeight: FontWeight.w800),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: inputBorder,
+        enabledBorder: inputBorder,
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: chalkCream, width: 1.4),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: MaterialStateProperty.resolveWith((states) {
+          if (states.contains(MaterialState.selected)) return chalkText;
+          return Colors.transparent;
+        }),
+        checkColor: MaterialStateProperty.all(chalkCreamSoft),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: chalkText,
+          side: BorderSide(color: chalkText.withOpacity(0.18)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: chalkCream,
+          foregroundColor: chalkText,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: chalkText),
+      ),
     );
   }
 
@@ -2295,87 +2387,133 @@ Widget _buildPreviewSlideContent(double scale) {
   Widget build(BuildContext context) {
     if (slides.isEmpty) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        backgroundColor: chalkInk,
+        body: Center(child: CircularProgressIndicator(color: chalkCream)),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_screenTitle()),
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 12,
-                offset: Offset(0, -3),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: saveContentLocally,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(54),
-                  ),
-                  child: const Text('Speichern'),
+    final editorTheme = _chalkEditorTheme(context);
+
+    return Theme(
+      data: editorTheme,
+      child: Scaffold(
+        backgroundColor: chalkInk,
+        appBar: chalkAppBar(title: _screenTitle()),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: chalkCreamSoft.withOpacity(0.88),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.white.withOpacity(0.38)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.24),
+                  blurRadius: 22,
+                  offset: const Offset(0, 10),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : sendContent,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(54),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: saveContentLocally,
+                    icon: const Icon(Icons.save_outlined, size: 18),
+                    label: const Text('Speichern'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      backgroundColor: Colors.white.withOpacity(0.34),
+                    ),
                   ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('An Screen senden'),
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: isLoading ? null : sendContent,
+                    icon: isLoading
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_outlined, size: 18),
+                    label: Text(isLoading ? 'Senden...' : 'An Screen'),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildSlideSelector(),
-            const SizedBox(height: 20),
-            _buildCommonFields(),
-            _buildTemplateSpecificFields(),
-            const SizedBox(height: 24),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Vorschau',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        body: ChalkBackground(
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ChalkCard(
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.all(16),
+                    opacity: 0.90,
+                    child: _buildSlideSelector(),
+                  ),
+                  const SizedBox(height: 16),
+                  ChalkCard(
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.all(18),
+                    opacity: 0.94,
+                    child: _buildCommonFields(),
+                  ),
+                  const SizedBox(height: 16),
+                  ChalkCard(
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.all(18),
+                    opacity: 0.94,
+                    child: _buildTemplateSpecificFields(),
+                  ),
+                  const SizedBox(height: 16),
+                  ChalkCard(
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.all(16),
+                    opacity: 0.92,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Vorschau',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: chalkText,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildPreviewCard(),
+                      ],
+                    ),
+                  ),
+                  if (errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(
+                          color: Color(0xFFFFD3D3),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            _buildPreviewCard(),
-            const SizedBox(height: 120),
-            if (errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Text(
-                  errorMessage!,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );

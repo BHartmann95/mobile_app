@@ -300,45 +300,144 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
   void showOptions(ScreenDevice screen) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.52),
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_rounded),
-              title: const Text('Umbenennen'),
-              onTap: () {
-                Navigator.pop(context);
-                renameScreen(screen);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.sync_rounded),
-              title: const Text('Screen neu verbinden / IP aktualisieren'),
-              onTap: () {
-                Navigator.pop(context);
-                reconnectScreen(screen);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline_rounded),
-              title: const Text('Screen löschen'),
-              onTap: () {
-                Navigator.pop(context);
-                deleteScreen(screen);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.link_off_rounded, color: Colors.red),
-              title: const Text('Screen entkoppeln'),
-              onTap: () {
-                Navigator.pop(context);
-                unpairScreen(screen);
-              },
-            ),
-          ],
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: chalkCreamSoft.withOpacity(0.98),
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withOpacity(0.52), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.34),
+                blurRadius: 30,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildSheetAction(
+                icon: Icons.edit_rounded,
+                label: 'Umbenennen',
+                onTap: () {
+                  Navigator.pop(context);
+                  renameScreen(screen);
+                },
+              ),
+              _buildSheetAction(
+                icon: Icons.sync_rounded,
+                label: 'Screen neu verbinden / IP aktualisieren',
+                onTap: () {
+                  Navigator.pop(context);
+                  reconnectScreen(screen);
+                },
+              ),
+              _buildSheetAction(
+                icon: Icons.delete_outline_rounded,
+                label: 'Screen löschen',
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  deleteScreen(screen);
+                },
+              ),
+              _buildSheetAction(
+                icon: Icons.link_off_rounded,
+                label: 'Screen entkoppeln',
+                isDestructive: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  unpairScreen(screen);
+                },
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSheetAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isDestructive = false,
+  }) {
+    final accent = isDestructive ? const Color(0xFF9B2D2D) : chalkText;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isDestructive
+                        ? const Color(0xFFFFE8E4)
+                        : Colors.white.withOpacity(0.56),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 20, color: accent),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle _chalkDialogButtonStyle({bool destructive = false}) {
+    return ElevatedButton.styleFrom(
+      elevation: 0,
+      backgroundColor: destructive ? const Color(0xFF9B2D2D) : chalkCream,
+      foregroundColor: destructive ? Colors.white : chalkText,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+    );
+  }
+
+  AlertDialog _chalkDialog({
+    required String title,
+    required Widget content,
+    required List<Widget> actions,
+  }) {
+    return AlertDialog(
+      backgroundColor: chalkCreamSoft,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: chalkText,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      content: content,
+      actions: actions,
     );
   }
 
@@ -346,15 +445,34 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     final controller = TextEditingController(text: screen.name);
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Screen umbenennen'),
+      builder: (_) => _chalkDialog(
+        title: 'Screen umbenennen',
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Neuer Name'),
+          cursorColor: chalkText,
+          decoration: InputDecoration(
+            labelText: 'Neuer Name',
+            labelStyle: TextStyle(color: chalkMutedText.withOpacity(0.9)),
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.58),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide(color: chalkMutedText.withOpacity(0.24)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: const BorderSide(color: chalkCream, width: 1.4),
+            ),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Abbrechen')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: chalkMutedText),
+            child: const Text('Abbrechen'),
+          ),
           ElevatedButton(
+            style: _chalkDialogButtonStyle(),
             onPressed: () async {
               final newName = controller.text.trim();
               if (newName.isEmpty) return;
@@ -383,12 +501,23 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
   Future<void> deleteScreen(ScreenDevice screen) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Screen löschen'),
-        content: Text('Soll "${screen.name}" wirklich aus der App gelöscht werden?'),
+      builder: (_) => _chalkDialog(
+        title: 'Screen löschen',
+        content: Text(
+          'Soll "${screen.name}" wirklich aus der App gelöscht werden?',
+          style: TextStyle(color: chalkMutedText.withOpacity(0.95), height: 1.35),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Löschen')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(foregroundColor: chalkMutedText),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: _chalkDialogButtonStyle(destructive: true),
+            child: const Text('Löschen'),
+          ),
         ],
       ),
     );
@@ -401,12 +530,23 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
   Future<void> unpairScreen(ScreenDevice screen) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Screen entkoppeln'),
-        content: Text('Soll "${screen.name}" wirklich entkoppelt werden?\n\nAm Screen werden Pairing und Content entfernt.'),
+      builder: (_) => _chalkDialog(
+        title: 'Screen entkoppeln',
+        content: Text(
+          'Soll "${screen.name}" wirklich entkoppelt werden?\n\nAm Screen werden Pairing und Content entfernt.',
+          style: TextStyle(color: chalkMutedText.withOpacity(0.95), height: 1.35),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Abbrechen')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Entkoppeln')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(foregroundColor: chalkMutedText),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: _chalkDialogButtonStyle(destructive: true),
+            child: const Text('Entkoppeln'),
+          ),
         ],
       ),
     );

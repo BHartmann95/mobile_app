@@ -7,6 +7,7 @@ const Color chalkCreamSoft = Color(0xFFF7F2EA);
 const Color chalkMint = Color(0xFFBFDCCB);
 const Color chalkText = Color(0xFF1E2426);
 const Color chalkMutedText = Color(0xFF6F766F);
+const Color chalkCardSurface = Color(0xFFF7F2EA);
 
 class ChalkBackground extends StatelessWidget {
   final Widget child;
@@ -88,9 +89,6 @@ class ChalkCard extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) {
-      return IgnorePointer(ignoring: true, child: card);
-    }
     return card;
   }
 }
