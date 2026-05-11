@@ -857,56 +857,9 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     return Scaffold(
       backgroundColor: chalkInk,
       extendBody: true,
-      appBar: AppBar(
-        backgroundColor: chalkInk,
-        elevation: 0,
-        centerTitle: false,
-        titleSpacing: 18,
-        title: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                'assets/icon_studio.png',
-                width: 38,
-                height: 38,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'TafelFix Studio',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      color: chalkCream,
-                      height: 1.05,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Meine Screens',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFFD8D2C6),
-                      fontWeight: FontWeight.w600,
-                      height: 1.05,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      appBar: brandedChalkAppBar(
+        title: 'TafelFix Studio',
+        subtitle: 'Meine Screens',
         actions: [
           IconButton(
             onPressed: (isRefreshingStatus || isDiscoveringScreens) ? null : refreshStatuses,

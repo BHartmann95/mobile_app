@@ -901,7 +901,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
 
     return Scaffold(
       backgroundColor: chalkInk,
-      appBar: chalkAppBar(title: 'Meine Vorlagen'),
+      appBar: brandedChalkAppBar(title: 'TafelFix Studio', subtitle: 'Meine Vorlagen'),
       body: ChalkBackground(
         child: Column(
           children: [

@@ -85,7 +85,7 @@ class TemplateSelectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: chalkInk,
-      appBar: chalkAppBar(title: 'Neue Vorlage'),
+      appBar: brandedChalkAppBar(title: 'TafelFix Studio', subtitle: 'Neue Vorlage'),
       body: ChalkBackground(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(0, 8, 0, 28),
@@ -93,7 +93,7 @@ class TemplateSelectionScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Text(
-                'Wähle, womit du starten möchtest.',
+                'Vorlage auswählen',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.82),
                   fontSize: 15,
@@ -103,30 +103,30 @@ class TemplateSelectionScreen extends StatelessWidget {
             ),
             _templateCard(
               context: context,
-              icon: Icons.restaurant_menu_rounded,
+              icon: Icons.flatware_rounded,
               title: 'Menü',
-              subtitle: 'Mehrere Gerichte mit Preisen',
+              subtitle: 'Gerichte und Preise',
               type: TemplateType.menu,
             ),
             _templateCard(
               context: context,
-              icon: Icons.local_cafe_rounded,
+              icon: Icons.wine_bar_rounded,
               title: 'Getränke',
-              subtitle: 'Getränke- oder Barkarte',
+              subtitle: 'Getränke und Preise',
               type: TemplateType.drinks,
             ),
             _templateCard(
               context: context,
-              icon: Icons.campaign_rounded,
+              icon: Icons.local_offer_rounded,
               title: 'Aktion',
-              subtitle: 'Promo, Angebot oder Tageshinweis',
+              subtitle: 'Angebot oder Hinweis',
               type: TemplateType.promo,
             ),
             _templateCard(
               context: context,
-              icon: Icons.waving_hand_rounded,
+              icon: Icons.front_hand_rounded,
               title: 'Willkommen',
-              subtitle: 'Begrüßung oder kurzer Info-Screen',
+              subtitle: 'Begrüßung oder Info',
               type: TemplateType.welcome,
             ),
             _templateCard(

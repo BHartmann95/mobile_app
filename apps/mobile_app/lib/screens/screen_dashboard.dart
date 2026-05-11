@@ -26,6 +26,7 @@ class ScreenDashboardPage extends StatefulWidget {
 
 class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
   String appVersion = '';
+  bool isOpeningCurrentContent = false;
 
   @override
   void initState() {
@@ -94,77 +95,105 @@ class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
   }
 
   Future<void> _openAssignedContentEditor(BuildContext context) async {
+    if (isOpeningCurrentContent) return;
+
+    setState(() {
+      isOpeningCurrentContent = true;
+    });
+
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
 
-    final liveResult = await _loadCurrentScreenContentLive();
-
-    if (!context.mounted) return;
-
-    if (liveResult.success && liveResult.savedContent != null) {
-      final liveContent = liveResult.savedContent!;
-
-      final storage = ContentStorageService();
-      await storage.addOrUpdateContent(liveContent);
+    try {
+      final liveResult = await _loadCurrentScreenContentLive();
 
       if (!context.mounted) return;
 
-      navigator.push(
-        MaterialPageRoute(
-          builder: (_) => TemplateEditorScreen(
-            ip: widget.ip,
-            screenName: widget.screenName,
-            screenOrientation: widget.screenOrientation,
-            templateType: liveContent.slides.isNotEmpty
-                ? liveContent.slides.first.templateType
-                : liveContent.templateType!,
-            initialContent: liveContent,
+      if (liveResult.success && liveResult.savedContent != null) {
+        final liveContent = liveResult.savedContent!;
+
+        final storage = ContentStorageService();
+        await storage.addOrUpdateContent(liveContent);
+
+        if (!context.mounted) return;
+
+        setState(() {
+          isOpeningCurrentContent = false;
+        });
+
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => TemplateEditorScreen(
+              ip: widget.ip,
+              screenName: widget.screenName,
+              screenOrientation: widget.screenOrientation,
+              templateType: liveContent.slides.isNotEmpty
+                  ? liveContent.slides.first.templateType
+                  : liveContent.templateType!,
+              initialContent: liveContent,
+            ),
           ),
-        ),
-      );
-      return;
-    }
+        );
+        return;
+      }
 
-    final assigned = await _loadLocallyAssignedContent();
+      final assigned = await _loadLocallyAssignedContent();
 
-    if (!context.mounted) return;
+      if (!context.mounted) return;
 
-    if (assigned != null) {
+      if (assigned != null) {
+        setState(() {
+          isOpeningCurrentContent = false;
+        });
+
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              liveResult.error == null || liveResult.error!.trim().isEmpty
+                  ? 'Live-Inhalt konnte nicht geladen werden. Lokale Version wird geöffnet.'
+                  : 'Live-Inhalt konnte nicht geladen werden (${liveResult.error}). Lokale Version wird geöffnet.',
+            ),
+          ),
+        );
+
+        navigator.push(
+          MaterialPageRoute(
+            builder: (_) => TemplateEditorScreen(
+              ip: widget.ip,
+              screenName: widget.screenName,
+              screenOrientation: widget.screenOrientation,
+              templateType: assigned.slides.isNotEmpty
+                  ? assigned.slides.first.templateType
+                  : assigned.templateType!,
+              initialContent: assigned,
+            ),
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        isOpeningCurrentContent = false;
+      });
+
       messenger.showSnackBar(
         SnackBar(
           content: Text(
             liveResult.error == null || liveResult.error!.trim().isEmpty
-                ? 'Live-Inhalt vom Screen konnte nicht geladen werden. Es wird der lokal gespeicherte Inhalt geöffnet.'
-                : 'Live-Inhalt vom Screen konnte nicht geladen werden (${liveResult.error}). Es wird der lokal gespeicherte Inhalt geöffnet.',
+                ? 'Am Screen ist aktuell kein gespeicherter Inhalt vorhanden.'
+                : 'Kein aktueller Screen-Inhalt verfügbar: ${liveResult.error}',
           ),
         ),
       );
-
-      navigator.push(
-        MaterialPageRoute(
-          builder: (_) => TemplateEditorScreen(
-            ip: widget.ip,
-            screenName: widget.screenName,
-            screenOrientation: widget.screenOrientation,
-            templateType: assigned.slides.isNotEmpty
-                ? assigned.slides.first.templateType
-                : assigned.templateType!,
-            initialContent: assigned,
-          ),
-        ),
+    } catch (e) {
+      if (!context.mounted) return;
+      setState(() {
+        isOpeningCurrentContent = false;
+      });
+      messenger.showSnackBar(
+        SnackBar(content: Text('Screen-Inhalt konnte nicht geladen werden: $e')),
       );
-      return;
     }
-
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          liveResult.error == null || liveResult.error!.trim().isEmpty
-              ? 'Am Screen ist aktuell kein gespeicherter Inhalt vorhanden.'
-              : 'Kein aktueller Screen-Inhalt verfügbar: ${liveResult.error}',
-        ),
-      ),
-    );
   }
 
   Widget _buildInfoCard() {
@@ -229,7 +258,7 @@ class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Bearbeite den aktuellen Screen-Inhalt, erstelle eine neue Vorlage oder sende eine vorhandene Vorlage an diesen Screen.',
+                  'Inhalt bearbeiten, Vorlagen erstellen oder senden.',
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.35,
@@ -305,54 +334,7 @@ class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
 
 
   PreferredSizeWidget _buildBrandedAppBar() {
-    return AppBar(
-      backgroundColor: chalkInk,
-      elevation: 0,
-      centerTitle: false,
-      titleSpacing: 18,
-      title: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              'assets/icon_studio.png',
-              width: 38,
-              height: 38,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TafelFix Studio',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: chalkCream,
-                  ),
-                ),
-                Text(
-                  'Screen Dashboard',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFD8D2C6),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return brandedChalkAppBar(title: 'TafelFix Studio', subtitle: 'Screen Dashboard');
   }
 
   Widget _buildAppFooter() {
@@ -385,15 +367,17 @@ class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
       backgroundColor: chalkInk,
       appBar: _buildBrandedAppBar(),
       body: ChalkBackground(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+        child: Stack(
           children: [
+            ListView(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+              children: [
             _buildInfoCard(),
             const SizedBox(height: 22),
             _buildActionCard(
               icon: Icons.edit_note_rounded,
               title: 'Aktuellen Screen-Inhalt bearbeiten',
-              subtitle: 'Live vom Screen laden und direkt im Editor weiterbearbeiten',
+              subtitle: 'Live-Inhalt laden und bearbeiten',
               onTap: () => _openAssignedContentEditor(context),
               primary: true,
             ),
@@ -401,7 +385,7 @@ class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
             _buildActionCard(
               icon: Icons.add_circle_outline_rounded,
               title: 'Neue Vorlage erstellen',
-              subtitle: 'Menü, Getränke, Aktion, Willkommen oder Foto neu gestalten',
+              subtitle: 'Neue Inhalte gestalten',
               onTap: () => _openTemplateSelection(context),
               primary: false,
             ),
@@ -409,12 +393,42 @@ class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
             _buildActionCard(
               icon: Icons.folder_copy_rounded,
               title: 'Meine Vorlagen',
-              subtitle: 'Bestehende Vorlagen öffnen, bearbeiten oder an Screens senden',
+              subtitle: 'Vorlagen öffnen oder senden',
               onTap: () => _openContentLibrary(context),
               primary: false,
             ),
             const SizedBox(height: 28),
-            _buildAppFooter(),
+                _buildAppFooter(),
+              ],
+            ),
+            if (isOpeningCurrentContent)
+              Container(
+                color: Colors.black.withOpacity(0.34),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+                    decoration: BoxDecoration(
+                      color: chalkCreamSoft.withOpacity(0.96),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.6, color: chalkText),
+                        ),
+                        SizedBox(width: 14),
+                        Text(
+                          'Screen-Inhalt wird geladen …',
+                          style: TextStyle(color: chalkText, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

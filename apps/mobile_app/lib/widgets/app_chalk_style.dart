@@ -139,16 +139,102 @@ class ChalkPill extends StatelessWidget {
 
 PreferredSizeWidget chalkAppBar({
   required String title,
+  String? subtitle,
+  List<Widget>? actions,
+}) {
+  return brandedChalkAppBar(
+    title: 'TafelFix Studio',
+    subtitle: subtitle ?? title,
+    actions: actions,
+  );
+}
+
+PreferredSizeWidget brandedChalkAppBar({
+  required String title,
+  String? subtitle,
   List<Widget>? actions,
 }) {
   return AppBar(
-    backgroundColor: Colors.transparent,
+    backgroundColor: chalkInk,
     elevation: 0,
-    foregroundColor: Colors.white,
-    title: Text(
-      title,
-      style: const TextStyle(fontWeight: FontWeight.w800),
+    foregroundColor: chalkCream,
+    centerTitle: false,
+    titleSpacing: 0,
+    title: Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.asset(
+            'assets/icon_studio.png',
+            width: 36,
+            height: 36,
+            fit: BoxFit.cover,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 18,
+                  height: 1.05,
+                  fontWeight: FontWeight.w900,
+                  color: chalkCream,
+                ),
+              ),
+              if (subtitle != null && subtitle.trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.05,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFD8D2C6),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     ),
     actions: actions,
+  );
+}
+
+ThemeData chalkAppTheme(BuildContext context) {
+  final base = Theme.of(context);
+  return base.copyWith(
+    colorScheme: base.colorScheme.copyWith(
+      primary: chalkCream,
+      secondary: chalkMint,
+      surface: chalkCreamSoft,
+      onPrimary: chalkText,
+    ),
+    sliderTheme: base.sliderTheme.copyWith(
+      activeTrackColor: chalkCream,
+      inactiveTrackColor: chalkCream.withOpacity(0.25),
+      thumbColor: chalkCream,
+      overlayColor: chalkCream.withOpacity(0.16),
+      valueIndicatorColor: chalkInkSoft,
+      valueIndicatorTextStyle: const TextStyle(color: chalkCream),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor: MaterialStateProperty.resolveWith((states) {
+        if (states.contains(MaterialState.selected)) return chalkText;
+        return Colors.transparent;
+      }),
+      checkColor: MaterialStateProperty.all(chalkCreamSoft),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(color: chalkCream),
   );
 }

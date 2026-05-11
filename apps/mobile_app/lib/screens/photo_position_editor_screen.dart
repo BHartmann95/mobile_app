@@ -183,8 +183,9 @@ class _PhotoPositionEditorScreenState extends State<PhotoPositionEditorScreen> {
         ),
       ),
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Foto positionieren'),
+        appBar: brandedChalkAppBar(
+          title: 'TafelFix Studio',
+          subtitle: 'Foto positionieren',
           actions: [
             TextButton(
               onPressed: _isSaving ? null : _resetTransform,
@@ -198,7 +199,7 @@ class _PhotoPositionEditorScreenState extends State<PhotoPositionEditorScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
                 child: Text(
-                  'Bild mit zwei Fingern zoomen und verschieben. Beim Speichern wird daraus ein neues lokales Foto erzeugt.',
+                  'Bild mit zwei Fingern zoomen und verschieben.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: chalkCream.withOpacity(0.84),

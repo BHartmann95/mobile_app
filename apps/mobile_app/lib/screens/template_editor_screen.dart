@@ -724,28 +724,28 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   IconData _templateIcon(TemplateType type) {
     switch (type) {
       case TemplateType.menu:
-        return Icons.restaurant_menu;
+        return Icons.restaurant_rounded;
       case TemplateType.drinks:
-        return Icons.local_bar;
+        return Icons.local_cafe_rounded;
       case TemplateType.promo:
-        return Icons.local_offer;
+        return Icons.campaign_rounded;
       case TemplateType.welcome:
-        return Icons.waving_hand;
+        return Icons.waving_hand_rounded;
       case TemplateType.photo:
-        return Icons.photo_library_outlined;
+        return Icons.image_rounded;
     }
   }
 
   Color _templateColor(TemplateType type) {
     switch (type) {
       case TemplateType.menu:
-        return Colors.orange;
+        return const Color(0xFF9A6A2F);
       case TemplateType.drinks:
-        return Colors.cyan;
+        return const Color(0xFF2F7D73);
       case TemplateType.promo:
-        return Colors.blue;
+        return const Color(0xFF2F6FA3);
       case TemplateType.welcome:
-        return Colors.green;
+        return const Color(0xFF2F8A57);
       case TemplateType.photo:
         return const Color(0xFF7A5E2C);
     }
@@ -1261,9 +1261,31 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Slides',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Slides',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: chalkCream.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: chalkText.withOpacity(0.10)),
+              ),
+              child: Text(
+                'Aktiv: Slide ${selectedSlideIndex + 1}',
+                style: const TextStyle(
+                  color: chalkText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Column(
@@ -1271,64 +1293,159 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ...List.generate(slides.length, (index) {
               final slide = slides[index];
               final isSelected = index == selectedSlideIndex;
+              final typeColor = _templateColor(slide.templateType);
 
-              return Card(
-                elevation: isSelected ? 4 : 1,
-                child: ListTile(
-                  leading: Icon(
-                    _templateIcon(slide.templateType),
-                    color: _templateColor(slide.templateType),
-                  ),
-                  title: Text(
-                    'Slide ${index + 1} · ${_templateLabel(slide.templateType)}',
-                  ),
-                  subtitle: Text('Dauer: ${_durationValue(slide)}s'),
-                  selected: isSelected,
-                  onTap: () {
-                    setState(() {
-                      selectedSlideIndex = index;
-                    });
-                  },
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_upward),
-                        onPressed: index > 0
-                            ? () {
-                                setState(() {
-                                  final temp = slides[index - 1];
-                                  slides[index - 1] = slides[index];
-                                  slides[index] = temp;
-                                  selectedSlideIndex = index - 1;
-                                });
-                              }
-                            : null,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_downward),
-                        onPressed: index < slides.length - 1
-                            ? () {
-                                setState(() {
-                                  final temp = slides[index + 1];
-                                  slides[index + 1] = slides[index];
-                                  slides[index] = temp;
-                                  selectedSlideIndex = index + 1;
-                                });
-                              }
-                            : null,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? chalkCream.withOpacity(0.92)
+                        : Colors.white.withOpacity(0.50),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? typeColor.withOpacity(0.72)
+                          : Colors.white.withOpacity(0.38),
+                      width: isSelected ? 1.8 : 1.0,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(isSelected ? 0.18 : 0.08),
+                        blurRadius: isSelected ? 18 : 10,
+                        offset: Offset(0, isSelected ? 8 : 4),
                       ),
                     ],
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      setState(() {
+                        selectedSlideIndex = index;
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: 6,
+                          height: 76,
+                          decoration: BoxDecoration(
+                            color: isSelected ? typeColor : Colors.transparent,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              bottomLeft: Radius.circular(20),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: typeColor.withOpacity(isSelected ? 0.18 : 0.10),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: typeColor.withOpacity(0.24)),
+                          ),
+                          child: Icon(
+                            _templateIcon(slide.templateType),
+                            size: 23,
+                            color: typeColor,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Slide ${index + 1} · ${_templateLabel(slide.templateType)}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isSelected ? chalkText : chalkText.withOpacity(0.82),
+                                        fontSize: isSelected ? 17 : 16,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: typeColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(999),
+                                      ),
+                                      child: Text(
+                                        'wird bearbeitet',
+                                        style: TextStyle(
+                                          color: typeColor,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Dauer: ${_durationValue(slide)}s',
+                                style: TextStyle(
+                                  color: chalkMutedText.withOpacity(0.86),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                          color: isSelected ? chalkText : chalkMutedText.withOpacity(0.58),
+                          onPressed: index > 0
+                              ? () {
+                                  setState(() {
+                                    final temp = slides[index - 1];
+                                    slides[index - 1] = slides[index];
+                                    slides[index] = temp;
+                                    selectedSlideIndex = index - 1;
+                                  });
+                                }
+                              : null,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                          color: isSelected ? chalkText : chalkMutedText.withOpacity(0.58),
+                          onPressed: index < slides.length - 1
+                              ? () {
+                                  setState(() {
+                                    final temp = slides[index + 1];
+                                    slides[index + 1] = slides[index];
+                                    slides[index] = temp;
+                                    selectedSlideIndex = index + 1;
+                                  });
+                                }
+                              : null,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                    ),
                   ),
                 ),
               );
             }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add_rounded),
                     label: const Text('Slide hinzufügen'),
                     onPressed: addSlide,
                   ),
@@ -1337,7 +1454,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 if (slides.length > 1)
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.delete_outline),
+                      icon: const Icon(Icons.delete_outline_rounded),
                       label: const Text('Aktuelle löschen'),
                       onPressed: removeCurrentSlide,
                     ),
@@ -1545,6 +1662,81 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
+  Widget _buildItemRows({required String addLabel}) {
+    return Column(
+      children: [
+        ...List.generate(currentSlide.itemNameControllers.length, (index) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.34),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: chalkText.withOpacity(0.08)),
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: currentSlide.itemNameControllers[index],
+                  minLines: 1,
+                  maxLines: 2,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: 'Name ${index + 1}'),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: currentSlide.itemPriceControllers[index],
+                        decoration: InputDecoration(labelText: 'Preis ${index + 1}'),
+                        textInputAction: TextInputAction.next,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: currentSlide.itemSoldOutControllers[index],
+                      builder: (context, soldOut, _) {
+                        return FilterChip(
+                          selected: soldOut,
+                          label: const Text('Ausverkauft'),
+                          avatar: Icon(
+                            soldOut ? Icons.check_rounded : Icons.remove_circle_outline_rounded,
+                            size: 17,
+                          ),
+                          selectedColor: chalkCream.withOpacity(0.9),
+                          checkmarkColor: chalkText,
+                          onSelected: (value) {
+                            currentSlide.itemSoldOutControllers[index].value = value;
+                          },
+                        );
+                      },
+                    ),
+                    IconButton(
+                      onPressed: currentSlide.itemNameControllers.length > 1
+                          ? () => removeMenuItem(index)
+                          : null,
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Eintrag löschen',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: addMenuItem,
+            icon: const Icon(Icons.add),
+            label: Text(addLabel),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMenuFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1555,66 +1747,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        ...List.generate(currentSlide.itemNameControllers.length, (index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: currentSlide.itemNameControllers[index],
-                    decoration: InputDecoration(labelText: 'Name ${index + 1}'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: currentSlide.itemPriceControllers[index],
-                    decoration: InputDecoration(labelText: 'Preis ${index + 1}'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ValueListenableBuilder<bool>(
-                  valueListenable: currentSlide.itemSoldOutControllers[index],
-                  builder: (context, soldOut, _) {
-                    return Column(
-                      children: [
-                        Checkbox(
-                          value: soldOut,
-                          onChanged: (value) {
-                            currentSlide.itemSoldOutControllers[index].value =
-                                value ?? false;
-                          },
-                        ),
-                        const Text('Ausverkauft', style: TextStyle(fontSize: 11)),
-                      ],
-                    );
-                  },
-                ),
-                IconButton(
-                  onPressed: currentSlide.itemNameControllers.length > 1
-                      ? () => removeMenuItem(index)
-                      : null,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-          );
-        }),
-        TextButton.icon(
-          onPressed: addMenuItem,
-          icon: const Icon(Icons.add),
-          label: const Text('Eintrag hinzufügen'),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _isPortraitPreview()
-              ? 'Im Portrait werden maximal 10 Einträge pro Menü-Slide angezeigt. Weitere Einträge werden automatisch auf zusätzliche Slides verteilt.'
-              : 'Im Landscape werden maximal 6 Einträge pro Menü-Slide angezeigt. Weitere Einträge werden automatisch auf zusätzliche Slides verteilt.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        _buildItemRows(addLabel: 'Eintrag hinzufügen'),
       ],
     );
   }
@@ -1629,66 +1762,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        ...List.generate(currentSlide.itemNameControllers.length, (index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: currentSlide.itemNameControllers[index],
-                    decoration: InputDecoration(labelText: 'Name ${index + 1}'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: currentSlide.itemPriceControllers[index],
-                    decoration: InputDecoration(labelText: 'Preis ${index + 1}'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ValueListenableBuilder<bool>(
-                  valueListenable: currentSlide.itemSoldOutControllers[index],
-                  builder: (context, soldOut, _) {
-                    return Column(
-                      children: [
-                        Checkbox(
-                          value: soldOut,
-                          onChanged: (value) {
-                            currentSlide.itemSoldOutControllers[index].value =
-                                value ?? false;
-                          },
-                        ),
-                        const Text('Ausverkauft', style: TextStyle(fontSize: 11)),
-                      ],
-                    );
-                  },
-                ),
-                IconButton(
-                  onPressed: currentSlide.itemNameControllers.length > 1
-                      ? () => removeMenuItem(index)
-                      : null,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
-            ),
-          );
-        }),
-        TextButton.icon(
-          onPressed: addMenuItem,
-          icon: const Icon(Icons.add),
-          label: const Text('Eintrag hinzufügen'),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _isPortraitPreview()
-              ? 'Im Portrait werden maximal 10 Einträge pro Getränke-Slide angezeigt. Weitere Einträge werden automatisch auf zusätzliche Slides verteilt.'
-              : 'Im Landscape werden maximal 6 Einträge pro Getränke-Slide angezeigt. Weitere Einträge werden automatisch auf zusätzliche Slides verteilt.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        _buildItemRows(addLabel: 'Getränk hinzufügen'),
       ],
     );
   }
@@ -1871,61 +1945,6 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
   }
 
-
-  Future<void> _editCurrentPhoto() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    File? sourceFile;
-    try {
-      sourceFile = await _ensureCurrentPhotoIsLocal();
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-
-    if (!mounted) return;
-
-    if (sourceFile == null || !(await sourceFile.exists())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Es ist kein lokales Foto zum Bearbeiten verfügbar.')),
-      );
-      return;
-    }
-
-    final result = await Navigator.push<EditedPhotoResult>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PhotoPositionEditorScreen(
-          imagePath: sourceFile!.path,
-          isPortrait: _isPortraitPreview(),
-          fullscreenPhoto: currentSlide.fullscreenPhoto,
-          title: currentSlide.titleController.text.trim(),
-          fileNamePrefix: currentSlide.photoFileName?.trim().isNotEmpty == true
-              ? currentSlide.photoFileName!.trim()
-              : 'tafel_fix_foto',
-        ),
-      ),
-    );
-
-    if (!mounted || result == null) return;
-
-    setState(() {
-      currentSlide.photoPath = result.path;
-      currentSlide.photoFileName = result.fileName;
-      currentSlide.imageAssetId = null;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Foto wurde bearbeitet und lokal gespeichert.')),
-    );
-  }
-
   Future<void> _showPhotoSourceMenu() async {
     final hasScreenAsset = currentSlide.imageAssetId?.trim().isNotEmpty == true;
     final path = currentSlide.photoPath?.trim();
@@ -1997,7 +2016,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }
 
     if (action == 'editSoon') {
-      await _editCurrentPhoto();
+      await _openPhotoPositionEditor();
       return;
     }
 
@@ -2014,6 +2033,45 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       currentSlide.imageAssetId = null;
       currentSlide.fullscreenPhoto = fullscreen;
     });
+  }
+
+  Future<void> _openPhotoPositionEditor() async {
+    final path = currentSlide.photoPath?.trim();
+    if (path == null || path.isEmpty || !File(path).existsSync()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bitte zuerst ein Foto auswählen oder vom Screen laden.')),
+      );
+      return;
+    }
+
+    final result = await Navigator.push<EditedPhotoResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PhotoPositionEditorScreen(
+          imagePath: path,
+          isPortrait: _isPortraitPreview(),
+          fullscreenPhoto: currentSlide.fullscreenPhoto,
+          title: currentSlide.titleController.text.trim(),
+          fileNamePrefix: currentSlide.photoFileName?.trim().isNotEmpty == true
+              ? currentSlide.photoFileName!.trim()
+              : 'tafel_fix_foto.png',
+        ),
+      ),
+    );
+
+    if (result == null) return;
+    if (!mounted) return;
+
+    setState(() {
+      currentSlide.photoPath = result.path;
+      currentSlide.photoFileName = result.fileName;
+      currentSlide.imageAssetId = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Foto wurde bearbeitet und lokal gespeichert.')),
+    );
   }
 
   Widget _buildPhotoFields() {
@@ -2111,8 +2169,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           const SizedBox(height: 12),
           Text(
             currentSlide.fullscreenPhoto
-                ? 'Fullscreen füllt den gesamten Screen. Eine Überschrift wird dabei nicht angezeigt.'
-                : 'Mit Titel/Rahmen bleibt Platz für eine Überschrift und das Foto wird eingebettet dargestellt.',
+                ? 'Füllt den Screen ohne Überschrift.'
+                : 'Zeigt Überschrift und Foto im Rahmen.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -2754,6 +2812,14 @@ Widget _buildPreviewSlideContent(double scale) {
         }),
         checkColor: MaterialStateProperty.all(chalkCreamSoft),
       ),
+      sliderTheme: base.sliderTheme.copyWith(
+        activeTrackColor: chalkCream,
+        inactiveTrackColor: chalkCream.withOpacity(0.26),
+        thumbColor: chalkCream,
+        overlayColor: chalkCream.withOpacity(0.16),
+        valueIndicatorColor: chalkInkSoft,
+        valueIndicatorTextStyle: const TextStyle(color: chalkCream),
+      ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: chalkText,
@@ -2803,7 +2869,7 @@ Widget _buildPreviewSlideContent(double scale) {
       data: editorTheme,
       child: Scaffold(
         backgroundColor: chalkInk,
-        appBar: chalkAppBar(title: _screenTitle()),
+        appBar: brandedChalkAppBar(title: 'TafelFix Studio', subtitle: _screenTitle()),
         bottomNavigationBar: SafeArea(
           top: false,
           child: Container(
