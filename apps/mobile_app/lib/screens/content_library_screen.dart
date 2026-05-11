@@ -361,6 +361,13 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
               );
             }
           }
+
+          imageFileName ??= slide.photoFileName?.trim().isNotEmpty == true
+              ? slide.photoFileName!.trim()
+              : null;
+          imageAssetId ??= slide.imageAssetId?.trim().isNotEmpty == true
+              ? slide.imageAssetId!.trim()
+              : null;
         }
 
         return {
@@ -388,7 +395,7 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
           'imageFileName': imageFileName,
           'photoPath': slide.photoPath,
           'photoScale': slide.photoScale,
-          'fullscreenPhoto': false,
+          'fullscreenPhoto': slide.fullscreenPhoto,
         };
       }),
     };

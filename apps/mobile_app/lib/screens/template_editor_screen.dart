@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/template.dart';
@@ -17,6 +18,7 @@ import '../widgets/headline_board_widget.dart';
 import '../widgets/menu_board_widget.dart';
 import '../widgets/photo_board_widget.dart';
 import '../widgets/app_chalk_style.dart';
+import 'photo_position_editor_screen.dart';
 
 class TemplateEditorScreen extends StatefulWidget {
   final String ip;
@@ -56,6 +58,7 @@ class _EditableSlide {
   double logoOpacity;
   String? photoPath;
   String? photoFileName;
+  String? imageAssetId;
   double photoScale;
   bool fullscreenPhoto;
 
@@ -75,6 +78,7 @@ class _EditableSlide {
     this.logoOpacity = 0.12,
     this.photoPath,
     this.photoFileName,
+    this.imageAssetId,
     this.photoScale = 1.0,
     this.fullscreenPhoto = false,
   });
@@ -251,7 +255,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   Future<Directory> _getManagedImageDirectory() async {
     final dir = await getApplicationDocumentsDirectory();
     final target = Directory('${dir.path}/content_assets/$contentId');
-    if (!await target.exists()) {
+    if (!(await target.exists())) {
       await target.create(recursive: true);
     }
     return target;
@@ -406,13 +410,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return byteData.buffer.asUint8List();
   }
 
-  Future<Map<String, String>?> _pickManagedPhotoFile() async {
+  Future<Map<String, String>?> _pickManagedPhotoFile({ImageSource? source}) async {
     try {
-      final source = await _showPhotoSourceSheet();
-      if (source == null) return null;
+      final resolvedSource = source ?? await _showPhotoSourceSheet();
+      if (resolvedSource == null) return null;
 
       final picked = await _imagePicker.pickImage(
-        source: source,
+        source: resolvedSource,
         imageQuality: 100,
       );
       if (picked == null) return null;
@@ -512,6 +516,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     setState(() {
       currentSlide.photoPath = selected['path'];
       currentSlide.photoFileName = selected['fileName'];
+      currentSlide.imageAssetId = null;
       currentSlide.fullscreenPhoto = fullscreen;
     });
   }
@@ -520,6 +525,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     setState(() {
       currentSlide.photoPath = null;
       currentSlide.photoFileName = null;
+      currentSlide.imageAssetId = null;
       currentSlide.fullscreenPhoto = false;
     });
   }
@@ -645,7 +651,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       logoOpacity: _normalizeLogoOpacity(slideData.logoOpacity),
       photoPath: slideData.photoPath,
       photoFileName: slideData.photoFileName,
-      photoScale: 1.0,
+      imageAssetId: slideData.imageAssetId,
+      photoScale: slideData.photoScale,
+      fullscreenPhoto: slideData.fullscreenPhoto,
     );
 
     if ((slide.templateType == TemplateType.menu ||
@@ -919,7 +927,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         logoOpacity: _normalizeLogoOpacity(slide.logoOpacity),
         photoPath: slide.photoPath,
         photoFileName: slide.photoFileName,
+        imageAssetId: slide.imageAssetId,
         photoScale: 1.0,
+        fullscreenPhoto: slide.fullscreenPhoto,
       );
     });
   }
@@ -1124,6 +1134,32 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
 
+
+  String? _resolvedImageAssetIdForSlide(
+    _EditableSlide slide,
+    int index,
+    int contentVersion,
+  ) {
+    if (slide.templateType != TemplateType.photo) return null;
+
+    final photoPath = slide.photoPath?.trim();
+    final fileName = slide.photoFileName?.trim();
+
+    if (photoPath != null && photoPath.isNotEmpty && fileName != null && fileName.isNotEmpty) {
+      final file = File(photoPath);
+      if (file.existsSync()) {
+        return 'content_${contentVersion}_slide_${index + 1}_$fileName';
+      }
+    }
+
+    final existingAssetId = slide.imageAssetId?.trim();
+    if (existingAssetId != null && existingAssetId.isNotEmpty) {
+      return existingAssetId;
+    }
+
+    return null;
+  }
+
   List<UploadableAsset> _buildUploadableAssets(int contentVersion) {
     final assets = <UploadableAsset>[];
 
@@ -1137,13 +1173,15 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       final file = File(photoPath);
       if (!file.existsSync()) continue;
 
-      final assetId =
-          'content_${contentVersion}_slide_${index + 1}_${slide.photoFileName ?? file.uri.pathSegments.last}';
+      final fileName = slide.photoFileName?.trim().isNotEmpty == true
+          ? slide.photoFileName!.trim()
+          : file.uri.pathSegments.last;
+      final assetId = 'content_${contentVersion}_slide_${index + 1}_$fileName';
 
       assets.add(
         UploadableAsset(
           assetId: assetId,
-          fileName: slide.photoFileName ?? file.uri.pathSegments.last,
+          fileName: fileName,
           file: file,
         ),
       );
@@ -1186,9 +1224,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
         final fileName = slide.photoFileName?.trim().isNotEmpty == true
             ? slide.photoFileName!.trim()
             : null;
-        final imageAssetId = slide.templateType == TemplateType.photo && fileName != null
-            ? 'content_${contentVersion}_slide_${index + 1}_$fileName'
-            : null;
+        final imageAssetId = _resolvedImageAssetIdForSlide(
+          slide,
+          index,
+          contentVersion,
+        );
 
         return {
           'slideId': 'slide_${index + 1}',
@@ -1670,6 +1710,312 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
+
+
+  Future<File?> _ensureCurrentPhotoIsLocal() async {
+    final path = currentSlide.photoPath?.trim();
+    if (path != null && path.isNotEmpty) {
+      final file = File(path);
+      if (await file.exists()) {
+        return file;
+      }
+    }
+
+    final assetId = currentSlide.imageAssetId?.trim();
+    if (assetId == null || assetId.isEmpty) {
+      return null;
+    }
+
+    final fileName = currentSlide.photoFileName?.trim().isNotEmpty == true
+        ? currentSlide.photoFileName!.trim()
+        : 'screen_photo.jpg';
+
+    final api = ApiService('http://${widget.ip}:8080');
+    final downloaded = await api.downloadAssetToLocalCache(
+      assetId: assetId,
+      fileName: fileName,
+      stableContentId: contentId,
+    );
+
+    if (downloaded == null || !(await downloaded.exists())) {
+      return null;
+    }
+
+    if (mounted) {
+      setState(() {
+        currentSlide.photoPath = downloaded.path;
+        currentSlide.photoFileName = fileName;
+        currentSlide.imageAssetId = assetId;
+      });
+    }
+
+    return downloaded;
+  }
+
+  String _downloadFileNameForCurrentPhoto(File sourceFile) {
+    final original = currentSlide.photoFileName?.trim().isNotEmpty == true
+        ? currentSlide.photoFileName!.trim()
+        : sourceFile.uri.pathSegments.isNotEmpty
+            ? sourceFile.uri.pathSegments.last
+            : 'tafel_fix_foto.png';
+
+    final dotIndex = original.lastIndexOf('.');
+    final extension = dotIndex >= 0 ? original.substring(dotIndex) : '.png';
+    final baseName = dotIndex >= 0 ? original.substring(0, dotIndex) : original;
+    final safeBase = _sanitizeFileName(baseName).replaceAll(RegExp(r'\.+$'), '');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return _sanitizeFileName('${safeBase.isEmpty ? 'tafel_fix_foto' : safeBase}_$timestamp$extension');
+  }
+
+  Future<File> _preparePhotoCopyForGallery(File sourceFile) async {
+    final tempDir = await getTemporaryDirectory();
+    final targetName = _downloadFileNameForCurrentPhoto(sourceFile);
+    final targetFile = File('${tempDir.path}/$targetName');
+    await sourceFile.copy(targetFile.path);
+    return targetFile;
+  }
+
+  Future<void> _saveCurrentPhotoToGallery() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final sourceFile = await _ensureCurrentPhotoIsLocal();
+
+      if (!mounted) return;
+
+      if (sourceFile == null || !(await sourceFile.exists())) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Es ist kein Foto zum Herunterladen verfügbar.')),
+        );
+        return;
+      }
+
+      final galleryFile = await _preparePhotoCopyForGallery(sourceFile);
+      await Gal.putImage(galleryFile.path, album: 'TafelFix');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto wurde in der Galerie/Mediathek im Album „TafelFix“ gespeichert.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Foto konnte nicht in der Galerie gespeichert werden: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _downloadCurrentPhotoFromScreen() async {
+    final assetId = currentSlide.imageAssetId?.trim();
+    final fileName = currentSlide.photoFileName?.trim().isNotEmpty == true
+        ? currentSlide.photoFileName!.trim()
+        : 'screen_photo.jpg';
+
+    if (assetId == null || assetId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Für dieses Foto ist keine Screen-Datei hinterlegt.')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final api = ApiService('http://${widget.ip}:8080');
+      final file = await api.downloadAssetToLocalCache(
+        assetId: assetId,
+        fileName: fileName,
+        stableContentId: contentId,
+      );
+
+      if (!mounted) return;
+
+      if (file == null || !file.existsSync()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto konnte nicht vom Screen geladen werden.')),
+        );
+        return;
+      }
+
+      setState(() {
+        currentSlide.photoPath = file.path;
+        currentSlide.photoFileName = fileName;
+        currentSlide.imageAssetId = assetId;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto wurde auf dieses Tablet geladen und kann jetzt bearbeitet werden.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+
+  Future<void> _editCurrentPhoto() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    File? sourceFile;
+    try {
+      sourceFile = await _ensureCurrentPhotoIsLocal();
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+
+    if (!mounted) return;
+
+    if (sourceFile == null || !(await sourceFile.exists())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Es ist kein lokales Foto zum Bearbeiten verfügbar.')),
+      );
+      return;
+    }
+
+    final result = await Navigator.push<EditedPhotoResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PhotoPositionEditorScreen(
+          imagePath: sourceFile!.path,
+          isPortrait: _isPortraitPreview(),
+          fullscreenPhoto: currentSlide.fullscreenPhoto,
+          title: currentSlide.titleController.text.trim(),
+          fileNamePrefix: currentSlide.photoFileName?.trim().isNotEmpty == true
+              ? currentSlide.photoFileName!.trim()
+              : 'tafel_fix_foto',
+        ),
+      ),
+    );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      currentSlide.photoPath = result.path;
+      currentSlide.photoFileName = result.fileName;
+      currentSlide.imageAssetId = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Foto wurde bearbeitet und lokal gespeichert.')),
+    );
+  }
+
+  Future<void> _showPhotoSourceMenu() async {
+    final hasScreenAsset = currentSlide.imageAssetId?.trim().isNotEmpty == true;
+    final path = currentSlide.photoPath?.trim();
+    final hasLocalPhoto = path != null && path.isNotEmpty && File(path).existsSync();
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: chalkCreamSoft,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: chalkMutedText.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text('Aus Mediathek wählen'),
+                  onTap: () => Navigator.pop(context, 'replace'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: const Text('Foto aufnehmen'),
+                  onTap: () => Navigator.pop(context, 'camera'),
+                ),
+                if (hasLocalPhoto || hasScreenAsset)
+                  ListTile(
+                    leading: const Icon(Icons.download_rounded),
+                    title: const Text('Foto herunterladen'),
+                    subtitle: const Text('Speichert in Galerie/Mediathek im Album TafelFix'),
+                    onTap: () => Navigator.pop(context, 'saveToTablet'),
+                  ),
+                if (hasLocalPhoto)
+                  ListTile(
+                    leading: const Icon(Icons.tune_rounded),
+                    title: const Text('Aktuelles Foto bearbeiten'),
+                    subtitle: const Text('Positionieren und Zoomen'),
+                    onTap: () => Navigator.pop(context, 'editSoon'),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.close_rounded),
+                  title: const Text('Abbrechen'),
+                  onTap: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (action == null) return;
+
+    if (action == 'saveToTablet') {
+      await _saveCurrentPhotoToGallery();
+      return;
+    }
+
+    if (action == 'editSoon') {
+      await _editCurrentPhoto();
+      return;
+    }
+
+    final source = action == 'camera' ? ImageSource.camera : ImageSource.gallery;
+    final selected = await _pickManagedPhotoFile(source: source);
+    if (selected == null) return;
+
+    final fullscreen = await _showPhotoDisplayModeDialog();
+    if (fullscreen == null) return;
+
+    setState(() {
+      currentSlide.photoPath = selected['path'];
+      currentSlide.photoFileName = selected['fileName'];
+      currentSlide.imageAssetId = null;
+      currentSlide.fullscreenPhoto = fullscreen;
+    });
+  }
+
   Widget _buildPhotoFields() {
     final path = currentSlide.photoPath?.trim();
     final file = (path != null && path.isNotEmpty) ? File(path) : null;
@@ -1689,9 +2035,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _pickPhotoForCurrentSlide,
+                  onPressed: _showPhotoSourceMenu,
                   icon: const Icon(Icons.add_a_photo_outlined),
-                  label: Text(exists ? 'Foto ersetzen' : 'Foto auswählen'),
+                  label: Text(exists ? 'Foto ersetzen / bearbeiten' : 'Foto auswählen'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -1703,11 +2049,70 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 ),
             ],
           ),
+          const SizedBox(height: 10),
+          if (exists)
+            Text(
+              'Foto ist lokal auf diesem Tablet gespeichert und kann weiterverwendet werden.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF18764C),
+                    fontWeight: FontWeight.w700,
+                  ),
+            )
+          else if (currentSlide.imageAssetId?.trim().isNotEmpty == true)
+            TextButton.icon(
+              onPressed: _downloadCurrentPhotoFromScreen,
+              icon: const Icon(Icons.download_rounded),
+              label: const Text('Foto vom Screen auf dieses Tablet laden'),
+            ),
+          const SizedBox(height: 16),
+          Text(
+            'Bilddarstellung',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<bool>(
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) {
+                  return chalkCream.withOpacity(0.95);
+                }
+                return Colors.white.withOpacity(0.42);
+              }),
+              foregroundColor: MaterialStateProperty.all(chalkText),
+              side: MaterialStateProperty.resolveWith((states) {
+                if (states.contains(MaterialState.selected)) {
+                  return BorderSide(color: chalkText.withOpacity(0.38), width: 1.2);
+                }
+                return BorderSide(color: chalkMutedText.withOpacity(0.22));
+              }),
+              overlayColor: MaterialStateProperty.all(chalkCream.withOpacity(0.18)),
+            ),
+            segments: const [
+              ButtonSegment<bool>(
+                value: false,
+                icon: Icon(Icons.crop_16_9_rounded),
+                label: Text('Mit Titel/Rahmen'),
+              ),
+              ButtonSegment<bool>(
+                value: true,
+                icon: Icon(Icons.fullscreen_rounded),
+                label: Text('Fullscreen'),
+              ),
+            ],
+            selected: {currentSlide.fullscreenPhoto},
+            onSelectionChanged: (values) {
+              setState(() {
+                currentSlide.fullscreenPhoto = values.first;
+              });
+            },
+          ),
           const SizedBox(height: 12),
           Text(
-            exists
-                ? 'Das Foto wird lokal gespeichert und beim Senden als echte Datei zum Screen übertragen. Titel und Bildgröße werden automatisch angepasst.'
-                : 'Das Foto bleibt mit sichtbarem Tafelrand eingebettet und wird automatisch passend dargestellt.',
+            currentSlide.fullscreenPhoto
+                ? 'Fullscreen füllt den gesamten Screen. Eine Überschrift wird dabei nicht angezeigt.'
+                : 'Mit Titel/Rahmen bleibt Platz für eine Überschrift und das Foto wird eingebettet dargestellt.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

@@ -1,8 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.mobile_app">
 
-    <!-- ✅ Kamera Berechtigung für QR Scanner -->
+    <!-- Kamera Berechtigung für QR Scanner und Fotoaufnahme -->
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Galerie-/Mediathek-Kompatibilität für ältere Android-Versionen -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
     <application
         android:label="TafelFix Studio"

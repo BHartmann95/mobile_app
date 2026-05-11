@@ -58,6 +58,7 @@ class SavedSlide {
   final String? photoFileName;
   final String? imageAssetId;
   final double photoScale;
+  final bool fullscreenPhoto;
 
   const SavedSlide({
     required this.id,
@@ -76,6 +77,7 @@ class SavedSlide {
     this.photoFileName,
     this.imageAssetId,
     this.photoScale = 1.0,
+    this.fullscreenPhoto = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -96,6 +98,7 @@ class SavedSlide {
       'photoFileName': photoFileName,
       'imageAssetId': imageAssetId,
       'photoScale': photoScale,
+      'fullscreenPhoto': fullscreenPhoto,
     };
   }
 
@@ -119,6 +122,7 @@ class SavedSlide {
       photoFileName: _nullableString(json['photoFileName']),
       imageAssetId: _nullableString(json['imageAssetId']),
       photoScale: ((json['photoScale'] as num?)?.toDouble() ?? 1.0).clamp(0.8, 1.2),
+      fullscreenPhoto: json['fullscreenPhoto'] == true,
     );
   }
 
@@ -139,6 +143,7 @@ class SavedSlide {
     String? photoFileName,
     String? imageAssetId,
     double? photoScale,
+    bool? fullscreenPhoto,
   }) {
     return SavedSlide(
       id: id ?? this.id,
@@ -157,6 +162,7 @@ class SavedSlide {
       photoFileName: photoFileName ?? this.photoFileName,
       imageAssetId: imageAssetId ?? this.imageAssetId,
       photoScale: photoScale ?? this.photoScale,
+      fullscreenPhoto: fullscreenPhoto ?? this.fullscreenPhoto,
     );
   }
 

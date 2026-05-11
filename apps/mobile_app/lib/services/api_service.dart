@@ -474,7 +474,7 @@ class ApiService {
       String? localPhotoPath;
 
       if (imageAssetId != null && imageFileName != null) {
-        final cachedFile = await _downloadAssetToLocalCache(
+        final cachedFile = await downloadAssetToLocalCache(
           assetId: imageAssetId,
           fileName: imageFileName,
           stableContentId: resolvedContentId,
@@ -511,6 +511,7 @@ class ApiService {
           photoFileName: imageFileName,
           imageAssetId: imageAssetId,
           photoScale: _parsePhotoScale(slideMap['photoScale']),
+          fullscreenPhoto: slideMap['fullscreenPhoto'] == true,
         ),
       );
     }
@@ -547,7 +548,7 @@ class ApiService {
   }
 
 
-  Future<File?> _downloadAssetToLocalCache({
+  Future<File?> downloadAssetToLocalCache({
     required String assetId,
     required String fileName,
     required String stableContentId,

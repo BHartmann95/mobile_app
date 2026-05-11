@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../models/screen.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -22,6 +23,7 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
   bool isLoading = true;
   bool isRefreshingStatus = false;
   bool isDiscoveringScreens = false;
+  String appVersion = '';
 
   final Map<String, ScreenStatus?> screenStatuses = {};
   Timer? statusRefreshTimer;
@@ -30,8 +32,17 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
   @override
   void initState() {
     super.initState();
+    _loadVersion();
     loadScreens();
     _startAutoRefresh();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() {
+      appVersion = 'v${info.version}';
+    });
   }
 
   Future<void> loadScreens() async {
@@ -846,8 +857,56 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
     return Scaffold(
       backgroundColor: chalkInk,
       extendBody: true,
-      appBar: chalkAppBar(
-        title: 'Meine Screens',
+      appBar: AppBar(
+        backgroundColor: chalkInk,
+        elevation: 0,
+        centerTitle: false,
+        titleSpacing: 18,
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                'assets/icon_studio.png',
+                width: 38,
+                height: 38,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'TafelFix Studio',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: chalkCream,
+                      height: 1.05,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Meine Screens',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFD8D2C6),
+                      fontWeight: FontWeight.w600,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             onPressed: (isRefreshingStatus || isDiscoveringScreens) ? null : refreshStatuses,
@@ -857,7 +916,7 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: chalkCream),
                   )
-                : const Icon(Icons.refresh_rounded),
+                : const Icon(Icons.refresh_rounded, color: chalkCream),
           ),
         ],
       ),
@@ -878,50 +937,85 @@ class _ScreenListScreenState extends State<ScreenListScreen> {
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.94),
-            borderRadius: BorderRadius.circular(26),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.28),
-                blurRadius: 28,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: addScreen,
-                  icon: const Icon(Icons.add_to_photos_rounded, size: 18),
-                  label: const Text('Screen hinzufügen'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: chalkText,
-                    side: const BorderSide(color: Color(0xFFE1D8C9)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 7),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      appVersion,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFFA89F8E),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _openMyTemplatesQuickAccess,
-                  icon: const Icon(Icons.folder_copy_rounded, size: 18),
-                  label: const Text('Meine Vorlagen'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: chalkCream,
-                    foregroundColor: chalkText,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  const Text(
+                    '© Greenbird.fm',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color(0xFFA89F8E),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                  const Spacer(),
+                ],
               ),
-            ],
-          ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.94),
+                borderRadius: BorderRadius.circular(26),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.28),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: addScreen,
+                      icon: const Icon(Icons.add_to_photos_rounded, size: 18),
+                      label: const Text('Screen hinzufügen'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: chalkText,
+                        side: const BorderSide(color: Color(0xFFE1D8C9)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _openMyTemplatesQuickAccess,
+                      icon: const Icon(Icons.folder_copy_rounded, size: 18),
+                      label: const Text('Meine Vorlagen'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: chalkCream,
+                        foregroundColor: chalkText,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

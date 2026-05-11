@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../models/saved_content.dart';
 import '../services/api_service.dart';
 import '../services/content_storage_service.dart';
@@ -7,7 +8,7 @@ import 'content_library_screen.dart';
 import 'template_editor_screen.dart';
 import '../widgets/app_chalk_style.dart';
 
-class ScreenDashboardPage extends StatelessWidget {
+class ScreenDashboardPage extends StatefulWidget {
   final String ip;
   final String screenName;
   final String screenOrientation;
@@ -19,14 +20,37 @@ class ScreenDashboardPage extends StatelessWidget {
     required this.screenOrientation,
   });
 
+  @override
+  State<ScreenDashboardPage> createState() => _ScreenDashboardPageState();
+}
+
+class _ScreenDashboardPageState extends State<ScreenDashboardPage> {
+  String appVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+
+    if (!mounted) return;
+
+    setState(() {
+      appVersion = 'v${info.version}';
+    });
+  }
+
   void _openTemplateSelection(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => TemplateSelectionScreen(
-          ip: ip,
-          screenName: screenName,
-          screenOrientation: screenOrientation,
+          ip: widget.ip,
+          screenName: widget.screenName,
+          screenOrientation: widget.screenOrientation,
         ),
       ),
     );
@@ -37,9 +61,9 @@ class ScreenDashboardPage extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (_) => ContentLibraryScreen(
-          ip: ip,
-          screenName: screenName,
-          screenOrientation: screenOrientation,
+          ip: widget.ip,
+          screenName: widget.screenName,
+          screenOrientation: widget.screenOrientation,
         ),
       ),
     );
@@ -49,7 +73,7 @@ class ScreenDashboardPage extends StatelessWidget {
     final storage = ContentStorageService();
     final contents = await storage.loadContents();
 
-    final matches = contents.where((content) => content.lastUsedScreenIp == ip).toList();
+    final matches = contents.where((content) => content.lastUsedScreenIp == widget.ip).toList();
 
     if (matches.isEmpty) {
       return null;
@@ -60,12 +84,12 @@ class ScreenDashboardPage extends StatelessWidget {
   }
 
   Future<ScreenContentResult> _loadCurrentScreenContentLive() async {
-    final api = ApiService('http://$ip:8080');
+    final api = ApiService('http://${widget.ip}:8080');
 
     return api.getCurrentContent(
-      fallbackName: screenName,
-      fallbackOrientation: screenOrientation,
-      stableContentId: 'screen_content_$ip',
+      fallbackName: widget.screenName,
+      fallbackOrientation: widget.screenOrientation,
+      stableContentId: 'screen_content_${widget.ip}',
     );
   }
 
@@ -88,9 +112,9 @@ class ScreenDashboardPage extends StatelessWidget {
       navigator.push(
         MaterialPageRoute(
           builder: (_) => TemplateEditorScreen(
-            ip: ip,
-            screenName: screenName,
-            screenOrientation: screenOrientation,
+            ip: widget.ip,
+            screenName: widget.screenName,
+            screenOrientation: widget.screenOrientation,
             templateType: liveContent.slides.isNotEmpty
                 ? liveContent.slides.first.templateType
                 : liveContent.templateType!,
@@ -119,9 +143,9 @@ class ScreenDashboardPage extends StatelessWidget {
       navigator.push(
         MaterialPageRoute(
           builder: (_) => TemplateEditorScreen(
-            ip: ip,
-            screenName: screenName,
-            screenOrientation: screenOrientation,
+            ip: widget.ip,
+            screenName: widget.screenName,
+            screenOrientation: widget.screenOrientation,
             templateType: assigned.slides.isNotEmpty
                 ? assigned.slides.first.templateType
                 : assigned.templateType!,
@@ -145,7 +169,7 @@ class ScreenDashboardPage extends StatelessWidget {
 
   Widget _buildInfoCard() {
     final orientationLabel =
-        screenOrientation == 'portrait' ? 'Portrait' : 'Landscape';
+        widget.screenOrientation == 'portrait' ? 'Portrait' : 'Landscape';
 
     return ChalkCard(
       margin: EdgeInsets.zero,
@@ -172,7 +196,7 @@ class ScreenDashboardPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  screenName,
+                  widget.screenName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -188,14 +212,14 @@ class ScreenDashboardPage extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     ChalkPill(
-                      label: ip,
+                      label: widget.ip,
                       icon: Icons.wifi_rounded,
                       background: const Color(0xFFF2F0EA),
                       foreground: const Color(0xFF5D5549),
                     ),
                     ChalkPill(
                       label: orientationLabel,
-                      icon: screenOrientation == 'portrait'
+                      icon: widget.screenOrientation == 'portrait'
                           ? Icons.stay_current_portrait_rounded
                           : Icons.stay_current_landscape_rounded,
                       background: const Color(0xFFE5F7ED),
@@ -279,11 +303,87 @@ class ScreenDashboardPage extends StatelessWidget {
     );
   }
 
+
+  PreferredSizeWidget _buildBrandedAppBar() {
+    return AppBar(
+      backgroundColor: chalkInk,
+      elevation: 0,
+      centerTitle: false,
+      titleSpacing: 18,
+      title: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              'assets/icon_studio.png',
+              width: 38,
+              height: 38,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TafelFix Studio',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: chalkCream,
+                  ),
+                ),
+                Text(
+                  'Screen Dashboard',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFD8D2C6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppFooter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          appVersion.isEmpty ? 'v...' : appVersion,
+          style: const TextStyle(
+            color: Color(0xFFA89F8E),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const Text(
+          '© Greenbird.fm',
+          style: TextStyle(
+            color: Color(0xFFA89F8E),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: chalkInk,
-      appBar: chalkAppBar(title: 'Screen Dashboard'),
+      appBar: _buildBrandedAppBar(),
       body: ChalkBackground(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
@@ -313,6 +413,8 @@ class ScreenDashboardPage extends StatelessWidget {
               onTap: () => _openContentLibrary(context),
               primary: false,
             ),
+            const SizedBox(height: 28),
+            _buildAppFooter(),
           ],
         ),
       ),
