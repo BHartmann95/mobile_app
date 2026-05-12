@@ -184,29 +184,12 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
   }
 
   Future<void> renameContent(SavedContent content) async {
-    final controller = TextEditingController(text: content.name);
-
-    final newName = await showDialog<String>(
+    final newName = await showChalkTextInputDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Inhalt umbenennen'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Neuer Name',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Speichern'),
-          ),
-        ],
-      ),
+      title: 'Vorlage umbenennen',
+      label: 'Neuer Name',
+      initialValue: content.name,
+      confirmLabel: 'Speichern',
     );
 
     if (newName == null || newName.trim().isEmpty) return;
@@ -219,25 +202,15 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
   }
 
   Future<void> deleteContent(SavedContent content) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showChalkConfirmDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Inhalt löschen'),
-        content: Text('Soll "${content.name}" wirklich gelöscht werden?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Abbrechen'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Löschen'),
-          ),
-        ],
-      ),
+      title: 'Vorlage löschen',
+      message: 'Soll "${content.name}" wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.',
+      confirmLabel: 'Löschen',
+      danger: true,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     final storage = ContentStorageService();
     await storage.deleteContent(content.id);
@@ -245,29 +218,12 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
   }
 
   Future<void> duplicateContent(SavedContent content) async {
-    final controller = TextEditingController(text: '${content.name} Kopie');
-
-    final newName = await showDialog<String>(
+    final newName = await showChalkTextInputDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Inhalt duplizieren'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Name der Kopie',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Duplizieren'),
-          ),
-        ],
-      ),
+      title: 'Vorlage duplizieren',
+      label: 'Name der Kopie',
+      initialValue: '${content.name} Kopie',
+      confirmLabel: 'Duplizieren',
     );
 
     if (newName == null || newName.trim().isEmpty) return;
@@ -303,26 +259,17 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
   }) async {
     if (!mounted) return;
 
-    await showDialog<void>(
+    final retry = await showChalkConfirmDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Schließen'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              onRetry();
-            },
-            child: const Text('Erneut versuchen'),
-          ),
-        ],
-      ),
+      title: title,
+      message: message,
+      cancelLabel: 'Schließen',
+      confirmLabel: 'Erneut versuchen',
     );
+
+    if (retry) {
+      onRetry();
+    }
   }
 
   ({Map<String, dynamic> payload, List<UploadableAsset> assets})
@@ -843,39 +790,95 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
   void showOptions(SavedContent content) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.48),
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Bearbeiten'),
-              onTap: () {
-                Navigator.pop(context);
-                openContent(content);
-              },
-            ),
-            ListTile(
-              title: const Text('Umbenennen'),
-              onTap: () {
-                Navigator.pop(context);
-                renameContent(content);
-              },
-            ),
-            ListTile(
-              title: const Text('Duplizieren'),
-              onTap: () {
-                Navigator.pop(context);
-                duplicateContent(content);
-              },
-            ),
-            ListTile(
-              title: const Text('Löschen'),
-              onTap: () {
-                Navigator.pop(context);
-                deleteContent(content);
-              },
-            ),
-          ],
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.fromLTRB(0, 10, 0, 14),
+          decoration: BoxDecoration(
+            color: chalkCreamSoft,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.28),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: chalkText.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 6, 22, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        content.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: chalkText,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ChalkBottomSheetAction(
+                icon: Icons.edit_note_rounded,
+                title: 'Bearbeiten',
+                subtitle: 'Vorlage öffnen und anpassen',
+                onTap: () {
+                  Navigator.pop(context);
+                  openContent(content);
+                },
+              ),
+              ChalkBottomSheetAction(
+                icon: Icons.drive_file_rename_outline_rounded,
+                title: 'Umbenennen',
+                subtitle: 'Namen in der Vorlagenliste ändern',
+                onTap: () {
+                  Navigator.pop(context);
+                  renameContent(content);
+                },
+              ),
+              ChalkBottomSheetAction(
+                icon: Icons.copy_rounded,
+                title: 'Duplizieren',
+                subtitle: 'Kopie dieser Vorlage erstellen',
+                onTap: () {
+                  Navigator.pop(context);
+                  duplicateContent(content);
+                },
+              ),
+              ChalkBottomSheetAction(
+                icon: Icons.delete_outline_rounded,
+                title: 'Löschen',
+                subtitle: 'Vorlage dauerhaft entfernen',
+                danger: true,
+                onTap: () {
+                  Navigator.pop(context);
+                  deleteContent(content);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

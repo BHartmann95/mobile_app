@@ -536,7 +536,11 @@ class ApiService {
 
     return SavedContent(
       id: resolvedContentId,
-      name: '$screenName – Aktueller Screen-Inhalt',
+      name: (payload['name']?.toString().trim().isNotEmpty ?? false)
+          ? payload['name'].toString().trim()
+          : (payload['contentName']?.toString().trim().isNotEmpty ?? false)
+              ? payload['contentName'].toString().trim()
+              : screenName,
       templateType: normalizedSlides.first.templateType,
       lastUsedScreenIp: _extractIpFromBaseUrl(),
       slides: normalizedSlides,

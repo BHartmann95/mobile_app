@@ -238,3 +238,278 @@ ThemeData chalkAppTheme(BuildContext context) {
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: chalkCream),
   );
 }
+
+Future<String?> showChalkTextInputDialog({
+  required BuildContext context,
+  required String title,
+  required String label,
+  required String initialValue,
+  String confirmLabel = 'Speichern',
+}) async {
+  final controller = TextEditingController(text: initialValue);
+
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: chalkCreamSoft,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.32),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: chalkText,
+                  fontSize: 22,
+                  height: 1.1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                cursorColor: chalkText,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => Navigator.pop(dialogContext, controller.text.trim()),
+                decoration: InputDecoration(
+                  labelText: label,
+                  labelStyle: const TextStyle(color: chalkMutedText, fontWeight: FontWeight.w700),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.62),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(color: chalkText.withOpacity(0.10)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: const BorderSide(color: chalkText, width: 1.3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: chalkText,
+                        side: BorderSide(color: chalkText.withOpacity(0.16)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: const Text('Abbrechen'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: chalkCream,
+                        foregroundColor: chalkText,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: Text(confirmLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  controller.dispose();
+  return result;
+}
+
+Future<bool> showChalkConfirmDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  String confirmLabel = 'Löschen',
+  String cancelLabel = 'Abbrechen',
+  bool danger = false,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      final confirmColor = danger ? const Color(0xFFB7475B) : chalkCream;
+      final confirmTextColor = danger ? Colors.white : chalkText;
+
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: chalkCreamSoft,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.32),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: chalkText,
+                  fontSize: 22,
+                  height: 1.1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                style: TextStyle(
+                  color: chalkMutedText.withOpacity(0.98),
+                  fontSize: 15,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: chalkText,
+                        side: BorderSide(color: chalkText.withOpacity(0.16)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: Text(cancelLabel),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: confirmColor,
+                        foregroundColor: confirmTextColor,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: Text(confirmLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+
+  return result == true;
+}
+
+class ChalkBottomSheetAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final bool danger;
+
+  const ChalkBottomSheetAction({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = danger ? const Color(0xFFB7475B) : chalkText;
+    final background = danger ? const Color(0xFFFFE8EC) : chalkCream.withOpacity(0.64);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: foreground, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          color: chalkMutedText.withOpacity(0.9),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
