@@ -113,6 +113,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   final List<_EditableSlide> slides = [];
   int selectedSlideIndex = 0;
+  int previewSlideIndex = 0;
+
+  final ScrollController _editorScrollController = ScrollController();
+  final PageController _previewPageController = PageController();
+  final GlobalKey _previewSectionKey = GlobalKey();
+  final GlobalKey _fieldsSectionKey = GlobalKey();
+  bool _isSyncingPreviewPage = false;
 
   bool isLoading = false;
   String? errorMessage;
@@ -685,6 +692,80 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   _EditableSlide get currentSlide => slides[selectedSlideIndex];
 
+  void _selectSlide(int index, {bool scrollToPreview = false}) {
+    if (index < 0 || index >= slides.length) return;
+
+    setState(() {
+      selectedSlideIndex = index;
+      previewSlideIndex = index;
+    });
+
+    _animatePreviewToSlide(index);
+
+    if (scrollToPreview) {
+      _scrollToPreviewSection();
+    }
+  }
+
+  void _animatePreviewToSlide(int index) {
+    if (!_previewPageController.hasClients) return;
+
+    final currentPage = _previewPageController.page?.round();
+    if (currentPage == index) return;
+
+    _isSyncingPreviewPage = true;
+    _previewPageController
+        .animateToPage(
+          index,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+        )
+        .whenComplete(() => _isSyncingPreviewPage = false);
+  }
+
+  void _jumpPreviewToSlide(int index) {
+    if (!_previewPageController.hasClients) return;
+    _previewPageController.jumpToPage(index);
+  }
+
+  void _scrollToPreviewSection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _previewSectionKey.currentContext;
+      if (context == null) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeOutCubic,
+        alignment: 0.08,
+      );
+    });
+  }
+
+  void _scrollToFieldsSection() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _fieldsSectionKey.currentContext;
+      if (context == null) return;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        alignment: 0.05,
+      );
+    });
+  }
+
+  void _openPreviewSlideForEditing() {
+    if (previewSlideIndex < 0 || previewSlideIndex >= slides.length) return;
+
+    if (selectedSlideIndex != previewSlideIndex) {
+      setState(() {
+        selectedSlideIndex = previewSlideIndex;
+      });
+    }
+
+    _scrollToFieldsSection();
+  }
+
   String _normalizeFontStyle(String? value) {
     final normalized = (value ?? '').trim().toLowerCase();
 
@@ -836,6 +917,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     setState(() {
       slides.add(_createDefaultSlide(selectedType));
       selectedSlideIndex = slides.length - 1;
+      previewSlideIndex = selectedSlideIndex;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _jumpPreviewToSlide(selectedSlideIndex);
+      _scrollToPreviewSection();
     });
   }
 
@@ -849,6 +935,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       if (selectedSlideIndex >= slides.length) {
         selectedSlideIndex = slides.length - 1;
       }
+      previewSlideIndex = selectedSlideIndex;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _jumpPreviewToSlide(selectedSlideIndex);
     });
   }
 
@@ -1321,11 +1411,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(20),
-                    onTap: () {
-                      setState(() {
-                        selectedSlideIndex = index;
-                      });
-                    },
+                    onTap: () => _selectSlide(index, scrollToPreview: true),
                     child: Row(
                       children: [
                         AnimatedContainer(
@@ -1415,6 +1501,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                     slides[index - 1] = slides[index];
                                     slides[index] = temp;
                                     selectedSlideIndex = index - 1;
+                                    previewSlideIndex = selectedSlideIndex;
                                   });
                                 }
                               : null,
@@ -1429,6 +1516,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                     slides[index + 1] = slides[index];
                                     slides[index] = temp;
                                     selectedSlideIndex = index + 1;
+                                    previewSlideIndex = selectedSlideIndex;
                                   });
                                 }
                               : null,
@@ -2437,29 +2525,31 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return expandedSlides;
   }
 
-  Map<String, dynamic> _currentPreviewSlide() {
+  Map<String, dynamic> _currentPreviewSlide({int? slideIndex}) {
+    final activeIndex = ((slideIndex ?? selectedSlideIndex).clamp(0, slides.length - 1)) as int;
+    final activeSlide = slides[activeIndex];
     final expandedSlides = _expandedPreviewSlides();
     if (expandedSlides.isEmpty) {
       return {
-        'templateType': currentSlide.templateType.name,
-        'title': currentSlide.titleController.text.trim(),
-        'subtitle': currentSlide.subtitleController.text.trim(),
-        'footer': currentSlide.footerController.text.trim(),
-        'highlightTitle': currentSlide.highlightTitleController.text.trim(),
-        'highlightPrice': currentSlide.highlightPriceController.text.trim(),
+        'templateType': activeSlide.templateType.name,
+        'title': activeSlide.titleController.text.trim(),
+        'subtitle': activeSlide.subtitleController.text.trim(),
+        'footer': activeSlide.footerController.text.trim(),
+        'highlightTitle': activeSlide.highlightTitleController.text.trim(),
+        'highlightPrice': activeSlide.highlightPriceController.text.trim(),
         'items': const <Map<String, dynamic>>[],
         'textScale': 1.0,
-        'logoMode': currentSlide.logoMode,
-        'logoOpacity': currentSlide.logoOpacity,
-        'photoPath': currentSlide.photoPath,
-        'fullscreenPhoto': currentSlide.fullscreenPhoto,
-        'imageFileName': currentSlide.photoFileName,
+        'logoMode': activeSlide.logoMode,
+        'logoOpacity': activeSlide.logoOpacity,
+        'photoPath': activeSlide.photoPath,
+        'fullscreenPhoto': activeSlide.fullscreenPhoto,
+        'imageFileName': activeSlide.photoFileName,
         'photoScale': 1.0,
       };
     }
 
     var previewIndex = 0;
-    for (var i = 0; i < selectedSlideIndex && i < slides.length; i++) {
+    for (var i = 0; i < activeIndex && i < slides.length; i++) {
       final type = slides[i].templateType;
       if (type == TemplateType.menu || type == TemplateType.drinks) {
         final itemCount = List.generate(slides[i].itemNameControllers.length, (index) {
@@ -2494,7 +2584,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     return (itemCount / _maxMenuItemsPerSlide()).ceil();
   }
 
-  Widget _buildPreviewCard() {
+  Widget _buildPreviewCard({int? slideIndex}) {
+    final renderIndex = ((slideIndex ?? selectedSlideIndex).clamp(0, slides.length - 1)) as int;
+    final renderSlide = slides[renderIndex];
     final isPortrait = _isPortraitPreview();
 
     return LayoutBuilder(
@@ -2525,10 +2617,10 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       child: Builder(
                         builder: (context) {
                           final usesHeadlinePreview =
-                              currentSlide.templateType == TemplateType.promo ||
-                              currentSlide.templateType == TemplateType.welcome;
+                              renderSlide.templateType == TemplateType.promo ||
+                              renderSlide.templateType == TemplateType.welcome;
 
-                          final previewSlide = _currentPreviewSlide();
+                          final previewSlide = _currentPreviewSlide(slideIndex: renderIndex);
                           final isFullscreenPhotoPreview =
                               previewSlide['templateType']?.toString() == 'photo' &&
                               previewSlide['fullscreenPhoto'] == true;
@@ -2561,38 +2653,42 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                             horizontal: isPortrait ? 80 : 120,
                                             vertical: isPortrait ? 60 : 70,
                                           ),
-                                child: _buildPreviewSlideContent(1.0),
-                              ),
-                              if (!isFullscreenPhotoPreview)
-                                Positioned(
-                                left: 16,
-                                bottom: 16,
-                                child: Opacity(
-                                  opacity: 0.35,
-                                  child: Text(
-                                    widget.screenName,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                child: _buildPreviewSlideContent(
+                                  1.0,
+                                  previewSlide: previewSlide,
+                                  fallbackTemplateType: renderSlide.templateType,
                                 ),
                               ),
                               if (!isFullscreenPhotoPreview)
                                 Positioned(
-                                right: 16,
-                                bottom: 16,
-                                child: Opacity(
-                                  opacity: 0.35,
-                                  child: Text(
-                                    'Vorschau · ${_templateLabel(currentSlide.templateType)} · ${_durationValue(currentSlide)}s',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
+                                  left: 16,
+                                  bottom: 16,
+                                  child: Opacity(
+                                    opacity: 0.35,
+                                    child: Text(
+                                      widget.screenName,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              if (!isFullscreenPhotoPreview)
+                                Positioned(
+                                  right: 16,
+                                  bottom: 16,
+                                  child: Opacity(
+                                    opacity: 0.35,
+                                    child: Text(
+                                      'Vorschau · ${_templateLabel(renderSlide.templateType)} · ${_durationValue(renderSlide)}s',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                             ],
                           );
                         },
@@ -2608,21 +2704,104 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-Widget _buildPreviewSlideContent(double scale) {
-    final previewSlide = _currentPreviewSlide();
-    final templateType =
-        previewSlide['templateType']?.toString() ?? currentSlide.templateType.name;
+  Widget _buildSwipeablePreview() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isPortrait = _isPortraitPreview();
+        final maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.of(context).size.width - 64;
+        final targetWidth = isPortrait
+            ? math.min(maxWidth, 420.0)
+            : math.min(maxWidth, 1100.0);
+        final previewHeight = isPortrait
+            ? targetWidth * 16 / 9
+            : targetWidth * 9 / 16;
+
+        return Column(
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _openPreviewSlideForEditing,
+              child: SizedBox(
+                height: previewHeight,
+                child: PageView.builder(
+                  controller: _previewPageController,
+                  itemCount: slides.length,
+                  onPageChanged: (index) {
+                    if (index < 0 || index >= slides.length) return;
+                    if (_isSyncingPreviewPage) {
+                      previewSlideIndex = index;
+                      return;
+                    }
+                    setState(() {
+                      previewSlideIndex = index;
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: _buildPreviewCard(slideIndex: index),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < slides.length; i++)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: i == selectedSlideIndex ? 18 : 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: i == previewSlideIndex
+                          ? chalkText
+                          : chalkText.withOpacity(0.22),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                const SizedBox(width: 10),
+                Text(
+                  '${selectedSlideIndex + 1} / ${slides.length}',
+                  style: TextStyle(
+                    color: chalkMutedText.withOpacity(0.92),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+
+Widget _buildPreviewSlideContent(
+    double scale, {
+    Map<String, dynamic>? previewSlide,
+    TemplateType? fallbackTemplateType,
+  }) {
+    final resolvedPreviewSlide = previewSlide ?? _currentPreviewSlide();
+    final templateType = resolvedPreviewSlide['templateType']?.toString() ??
+        (fallbackTemplateType ?? currentSlide.templateType).name;
 
     switch (templateType) {
       case 'menu':
       case 'drinks':
-        return _buildMenuPreviewFromPayload(previewSlide);
+        return _buildMenuPreviewFromPayload(resolvedPreviewSlide);
       case 'promo':
-        return _buildPromoPreviewFromPayload(previewSlide);
+        return _buildPromoPreviewFromPayload(resolvedPreviewSlide);
       case 'welcome':
-        return _buildWelcomePreviewFromPayload(previewSlide);
+        return _buildWelcomePreviewFromPayload(resolvedPreviewSlide);
       case 'photo':
-        return _buildPhotoPreviewFromPayload(previewSlide);
+        return _buildPhotoPreviewFromPayload(resolvedPreviewSlide);
       default:
         return const SizedBox.shrink();
     }
@@ -2846,6 +3025,8 @@ Widget _buildPreviewSlideContent(double scale) {
   @override
   void dispose() {
     libraryNameController.dispose();
+    _editorScrollController.dispose();
+    _previewPageController.dispose();
 
     for (final slide in slides) {
       slide.dispose();
@@ -2925,6 +3106,7 @@ Widget _buildPreviewSlideContent(double scale) {
           child: SafeArea(
             top: false,
             child: SingleChildScrollView(
+              controller: _editorScrollController,
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 120),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2937,6 +3119,7 @@ Widget _buildPreviewSlideContent(double scale) {
                   ),
                   const SizedBox(height: 16),
                   ChalkCard(
+                    key: _fieldsSectionKey,
                     margin: EdgeInsets.zero,
                     padding: const EdgeInsets.all(18),
                     opacity: 0.94,
@@ -2951,6 +3134,7 @@ Widget _buildPreviewSlideContent(double scale) {
                   ),
                   const SizedBox(height: 16),
                   ChalkCard(
+                    key: _previewSectionKey,
                     margin: EdgeInsets.zero,
                     padding: const EdgeInsets.all(16),
                     opacity: 0.92,
@@ -2966,7 +3150,7 @@ Widget _buildPreviewSlideContent(double scale) {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _buildPreviewCard(),
+                        _buildSwipeablePreview(),
                       ],
                     ),
                   ),
