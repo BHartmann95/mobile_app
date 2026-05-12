@@ -1,5 +1,25 @@
 workflows:
-    sample-workflow:
-        name: Codemagic Sample Workflow
-        max_build_duration: 120
-        instance_type: mac_mini_m2
+  ios-workflow:
+    name: TafelFix Studio iOS Build
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Flutter pub get
+        script: |
+          cd apps/mobile_app
+          flutter pub get
+
+      - name: Build iOS without code signing
+        script: |
+          cd apps/mobile_app
+          flutter build ios --release --no-codesign
+
+    artifacts:
+      - apps/mobile_app/build/ios/iphoneos/*.app
+      - apps/mobile_app/build/ios/iphoneos/Runner.app
